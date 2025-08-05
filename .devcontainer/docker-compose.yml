@@ -1,13 +1,19 @@
 services:
   odoo:
-    image: "ghcr.io/m3r3nix/odoo-v18-community:latest"
+    image: odoo:18.0
     depends_on:
       - db
     ports:
       - "8069:8069"
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+      - POSTGRES_DB=postgres
     volumes:
       - ../:/workspace
       - ../custom:/mnt/extra-addons
+
   db:
     image: postgres:16
     environment:
