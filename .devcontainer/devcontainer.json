@@ -1,0 +1,30 @@
+{
+    "name": "Odoo Dev Container",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "odoo",
+    "workspaceFolder": "/workspace/custom",
+    "remoteUser": "root",
+    "forwardPorts": [8069],
+    "postCreateCommand": "[ \"$CODESPACES\" = \"true\" ] && ln -s /workspaces/${localWorkspaceFolderBasename}/.vscode /workspace/custom/.vscode || ([ -z \"$CODESPACES\" ] && ln -s /workspace/.vscode /workspace/custom/.vscode || true)",
+    "shutdownAction": "stopCompose",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.shell.linux": "/bin/bash"
+            },
+            "extensions": [
+                "eamodio.gitlens",
+                "DavidAnson.vscode-markdownlint",
+                "DotJoshJohnson.xml",
+                "GitHub.copilot",
+                "GitHub.copilot-chat",
+                "ms-azuretools.vscode-docker",
+                "ms-python.python",
+                "ms-python.vscode-pylance"
+            ]
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    }
+}
