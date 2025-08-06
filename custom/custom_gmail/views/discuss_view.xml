@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+
+    <!-- ✅ Action OWL: mở giao diện OWL -->
+    <record id="action_gmail_message_ui" model="ir.actions.client">
+        <field name="name">Gmail Messages UI</field>
+        <field name="tag">custom_gmail.GmailInbox</field>
+    </record>
+
+    <!-- ✅ Template OWL (phải match với JS) -->
+    <template id="gmail_inbox_template" name="Gmail Inbox">
+        <t t-name="custom_gmail.GmailInbox">
+            <div class="o_gmail_inbox">
+                <h2>Gmail Messages</h2>
+                <table class="o_gmail_table">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>Subject</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.messages" t-as="msg">
+                            <tr t-on-click="selectMessage(msg)">
+                                <td><t t-esc="msg.email_sender"/></td>
+                                <td><t t-esc="msg.subject"/></td>
+                                <td><t t-esc="msg.date_received"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <t t-if="state.selectedMessage">
+                    <div class="o_gmail_message_detail">
+                        <h3><t t-esc="state.selectedMessage.subject"/></h3>
+                        <t t-raw="state.selectedMessage.body"/>
+                    </div>
+                </t>
+            </div>
+        </t>
+    </template>
+
+    <!-- ✅ Menu chính dưới Discuss -->
+    <menuitem id="menu_gmail_sync"
+              name="Gmail Sync"
+              parent="mail.menu_root_discuss"
+              sequence="10" />
+
+    <!-- ✅ Submenu mở OWL UI -->
+    <menuitem id="menu_gmail_messages"
+              name="Gmail Messages"
+              parent="menu_gmail_sync"
+              action="custom_gmail.action_gmail_message_ui"
+              sequence="20"/>
+
+  </data>
+</odoo>
