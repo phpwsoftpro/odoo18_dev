@@ -12,14 +12,17 @@ export async function onAnalyze(ev, msg) {
     const htmlBody = msg?.body || "";
     const subject = msg?.subject || "No Subject";
 
+    const email_to = msg?.to || "không có";
+    const message_id = msg?.message_id || "không có";
+
     const plainTextBody = htmlBody.replace(/<[^>]+>/g, '').trim();
 
     const sender_raw = msg?.sender || msg?.email_sender || "Unknown Sender";
     const sender_name = extractNameFromSender(sender_raw);
 
     // ✅ Quan trọng: Đảm bảo có email rõ ràng
-    const email_from = msg?.email_sender 
-        || (msg?.sender?.match(/<([^>]+)>/)?.[1]) 
+    const email_from = msg?.email_sender
+        || (msg?.sender?.match(/<([^>]+)>/)?.[1])
         || "unknown@example.com";
 
     if (!plainTextBody || plainTextBody.length < 10) {
@@ -34,6 +37,8 @@ export async function onAnalyze(ev, msg) {
             sender_name,
             email_from,
             html_body: htmlBody,
+            email_to,
+            message_id,
         }, {
             headers: {
                 "X-API-KEY": "my-secret-key"

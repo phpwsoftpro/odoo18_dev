@@ -1,0 +1,115 @@
+<odoo>
+    <record id="view_res_partner_form_custom" model="ir.ui.view">
+        <field name="name">res.partner.form.custom</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='company_type']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//notebook/page[1]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//notebook/page[2]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//notebook/page[3]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//page[@name='internal_notes']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//page[@name='accounting_disabled']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//page[@name='accounting']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group invisible="not is_company">
+                    <group>
+                        <field name="industry" string="Industry"/>
+                        <field name="company_owner_id" string="Company Owner"/>
+                        <field name="timezone" string="Timezone"/>
+                    </group>
+                    <group>
+                        <field name="description" string="Description Company"/>
+                        <field name="linkedin_link" string="LinkedIn Link"/>
+                    </group>
+                </group>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group invisible="is_company">
+                    <group >
+                        <field name="contact_owner_id"/>
+                        <field name="tech_stack_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                    </group>
+                    <group>
+                        <field name="send_again"/>
+                        <field name="lead_status"/>
+                    </group>
+                </group>
+            </xpath>
+            <!-- Thêm nút gửi email -->
+            <div name="button_box" position="inside">
+                <button class="oe_stat_button" type="object" name="action_open_mail_composer" icon="fa-envelope">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Send</span>
+                        <span class="o_stat_text">Email</span>
+                    </div>
+                </button>
+            </div>
+            <!-- Hiển thị danh sách Contacts -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Contacts" invisible="not is_company">
+                    <field name="child_ids" mode="list,kanban">
+                        <list>
+                            <field name="name"/>
+                            <field name="email"/>
+                            <field name="phone"/>
+                            <field name="mobile"/>
+                            <!-- Nút gửi email -->
+                            <button name="action_open_mail_composer" type="object" class="btn-link" icon="fa-envelope" string="Compose Email" context="{
+                                    'default_email_to': email,
+                                    'default_recipient_ids': [(6, 0, [id])]
+                                }"/>
+                            <button name="action_open_contact_in_new_tab" type="object" class="btn-link" string="Open" icon="fa-external-link"/>
+                        </list>
+                        <kanban>
+                            <field name="name"/>
+                            <field name="email"/>
+                            <field name="phone"/>
+                            <templates>
+                                <t t-name="kanban-box">
+                                    <div class="oe_kanban_global_click">
+                                        <strong>
+                                            <field name="name"/>
+                                        </strong>
+                                        <div>
+                                            <!-- Nút gửi mail -->
+                                            <button name="action_open_mail_composer" type="object" class="btn btn-link p-0">
+                                                <field name="email"/>
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <field name="phone"/>
+                                        </div>
+                                    </div>
+                                </t>
+                            </templates>
+                        </kanban>
+                    </field>
+                </page>
+                <page string="Companies" name="companies" invisible="is_company">
+                    <group>
+                        <field name="parent_id"></field>
+                        <button name="action_open_company_in_new_tab" string="Open" type="object" icon="fa-external-link" class="btn-link link-companies" />
+                    </group>
+                </page>
+                <page string="Mail History">
+                    <field name="mail_history_summary" widget="html" readonly="1"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
