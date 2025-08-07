@@ -1,0 +1,296 @@
+.note-editable {
+    height: 300px;
+}
+
+.o-we-hint {
+    height: 150px;
+}
+
+.modal:not([data-bs-backdrop="false"]) {
+    background-color: transparent !important;
+}
+
+.o_dialog {
+    pointer-events: none !important;
+}
+
+.o_dialog .modal-content {
+    pointer-events: auto !important;
+}
+
+.form-select {
+    margin-top: 8px;
+    border: 1px solid black !important;
+}
+
+.modal-content {
+    max-width: 90vw;
+    width: auto;
+    min-width: 800px;
+}
+
+.o_field_many2one_selection {
+    width: 35% !important;
+}
+
+.link-companies {
+    position: absolute;
+    left: 460px;
+    bottom: 126px;
+}
+
+.btn_send_email {
+    position: absolute;
+    right: 10px;
+    padding: 12px;
+}
+
+/* tab project notification */
+.o-project-MessagingMenu-list {
+    background-color: #f7f7f7;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.o-project-MessagingMenu-list .list-group-item {
+    background-color: #fff;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.o-project-MessagingMenu-list .list-group-item:hover {
+    background-color: #f1f1f1;
+}
+
+.o-project-MessagingMenu-list .list-group-item .subject {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.o-project-MessagingMenu-list .list-group-item .body {
+    color: #555;
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+.o-project-MessagingMenu-list .list-group-item small {
+    display: block;
+    color: #888;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Style for task move and comment icons */
+.o-project-MessagingMenu-list .list-group-item .icon {
+    font-size: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+    color: #007bff;
+}
+
+
+.o-mail-MessagingMenu-headerFilter[data-project-tab="true"]:hover {
+    background-color: #d0f0ff;
+}
+
+.o-project-MessagingMenu-list a.list-group-item:hover {
+    background-color: #f8f9fa;
+    text-decoration: none;
+}
+
+.o-project-MessagingMenu-list a.unread {
+    font-weight: 600;
+    background-color: #eef3f7;
+}
+
+.o-project-MessagingMenu-list a.read {
+    opacity: 0.7;
+}
+
+a.list-group-item.fw-bold {
+    background-color: #d7e1ed;
+    /* Chưa đọc: nền xanh nhạt */
+    border-left: 3px solid #1eb6f2;
+}
+
+a.list-group-item:not(.fw-bold) {
+    background-color: #f8f9fa;
+    /* Đã đọc: nền xám nhạt */
+    border-left: 3px solid transparent;
+}
+
+a.list-group-item:hover {
+    background-color: #e4ecf5 !important;
+    /* Hover: xanh sáng hơn */
+}
+
+/* button project tab */
+.o-mail-MessagingMenu-headerFilter[data-project-tab="true"] {
+    position: relative;
+}
+
+.o-mail-MessagingMenu-headerFilter[data-project-tab="true"] .o-project-tab-badge {
+    position: absolute;
+    top: 2px;
+    right: -12px;
+    background-color: #dc3545;
+    font-size: 0.7rem;
+    padding: 0.2em 0.45em;
+    display: inline-block;
+}
+
+.o-mail-MessagingMenu-headerFilter[data-project-tab="true"].o-active {
+    border-bottom: 2px solid #875A7B;
+    font-weight: 600;
+}
+
+.o-project-MessagingMenu-list .list-group-item {
+    border-radius: 6px;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    background-color: #f9f9f9;
+    transition: background 0.2s ease;
+}
+
+.o-project-MessagingMenu-list .list-group-item:hover {
+    background-color: #eef5ff;
+}
+
+.o-project-MessagingMenu-list .list-group-item.fw-bold {
+    border-left: 4px solid #007bff;
+    background-color: #e9f3ff;
+}
+
+.o-project-MessagingMenu-list .list-group-item .icon {
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.o-project-MessagingMenu-list .list-group-item .body {
+    color: #333;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+.o-project-MessagingMenu-list .list-group-item small {
+    color: #888;
+    font-size: 11px;
+}
+
+.o-project-MessagingMenu-list .list-group-item {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+#unread-toggle-btn {
+    height: 32px;
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: #333;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+}
+
+#project-sort-select {
+    height: 32px;
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: #333;
+    line-height: 1.5;
+    transition: all 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg fill='black' height='16' viewBox='0 0 24 24' width='16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 30px;
+}
+
+#project-sort-select:focus {
+    border-color: #6f42c1;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(111, 66, 193, 0.2);
+}
+
+#unread-toggle-btn:hover {
+    background-color: #f8f9fa;
+}
+
+#unread-toggle-btn.active {
+    background-color: #6f42c1;
+    color: #fff;
+    border-color: #6f42c1;
+}
+
+#unread-toggle-btn i {
+    color: #6f42c1;
+    transition: color 0.2s ease;
+}
+
+#unread-toggle-btn.active i {
+    color: #fff;
+}
+
+/* menu sort  */
+.o_stage_hover_sort {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 6px;
+}
+
+.o_hover_sort_btn {
+    background: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.o_hover_sort_dropdown {
+    background: white;
+    border: 1px solid #ccc;
+    margin-top: 2px;
+    padding: 4px;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.o_hover_sort_dropdown a {
+    display: block;
+    padding: 2px 8px;
+    color: #333;
+    text-decoration: none;
+}
+
+.o_hover_sort_dropdown a:hover {
+    background: #eee;
+}
+
+/* css field Candidate */
+.o_field_many2one_selection {
+    width: auto !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+}
+
+/* depcription project */
+.note-editable {
+    height: auto;
+}
