@@ -14,6 +14,8 @@ from email import encoders
 from email.utils import encode_rfc2231
 from odoo import http, fields
 from odoo.http import request
+from odoo.addons.custom_gmail.models.gmail_fetch import replace_cid_links
+
 
 
 class GmailInboxController(http.Controller):
@@ -84,7 +86,7 @@ class GmailInboxController(http.Controller):
                         if msg.date_received
                         else ""
                     ),
-                    "body": msg.body,
+                    "body": replace_cid_links(msg.body, attachments),
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
@@ -152,7 +154,7 @@ class GmailInboxController(http.Controller):
                         if msg.date_received
                         else ""
                     ),
-                    "body": msg.body,
+                    "body": replace_cid_links(msg.body, attachments),
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
@@ -216,7 +218,7 @@ class GmailInboxController(http.Controller):
                         if msg.date_received
                         else ""
                     ),
-                    "body": full_body,
+                    "body": replace_cid_links(full_body, attachments),
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
@@ -277,7 +279,7 @@ class GmailInboxController(http.Controller):
                         if msg.date_received
                         else ""
                     ),
-                    "body": full_body,
+                    "body": replace_cid_links(full_body, attachments),
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
@@ -338,7 +340,7 @@ class GmailInboxController(http.Controller):
                         if msg.date_received
                         else ""
                     ),
-                    "body": msg.body,
+                    "body": replace_cid_links(msg.body, attachments),
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
@@ -790,23 +792,25 @@ class MailAPIController(http.Controller):
         # ✅ Lấy danh sách file đính kèm
         attachments = []
         for file_storage in files:
-            _logger.info(
-                "📎 Upload file: %s (%s bytes)",
-                file_storage.filename,
-                len(file_storage.read()),
-            )
+            filename = file_storage.filename
+            file_data = file_storage.read()
             file_storage.seek(0)
 
             part = MIMEBase("application", "octet-stream")
-            part.set_payload(file_storage.read())
+            part.set_payload(file_data)
             encoders.encode_base64(part)
 
-            encoded_filename = encode_rfc2231(file_storage.filename, "utf-8")
-            part.add_header(
-                "Content-Disposition", f"attachment; filename*={encoded_filename}"
-            )
+            encoded_filename = encode_rfc2231(filename, "utf-8")
+            part.add_header("Content-Disposition", f"attachment; filename*={encoded_filename}")
+
+            # ✅ Nếu là ảnh inline, gán Content-ID
+            if filename.startswith("image") and "@forward.local" in filename:
+                cid = filename.split(".")[0] + "@forward.local"
+                part.add_header("Content-ID", f"<{cid}>")
+                part.add_header("Content-Disposition", f"inline; filename*={encoded_filename}")
 
             attachments.append(part)
+
 
         # ✅ Outlook
         if provider == "outlook":
@@ -952,9 +956,12 @@ class MailAPIController(http.Controller):
         # ✅ ADD FILE ATTACHMENTS HERE
         for part in attachments:
             mime_msg.attach(part)
+        _logger.info("📧 MIME Email content:\n%s", mime_msg.as_string())
 
         # Encode raw
         raw_bytes = base64.urlsafe_b64encode(mime_msg.as_bytes())
+        _logger.info("📧 MIME Email content:\n%s", mime_msg.as_string())
+
         raw_str = raw_bytes.decode()
 
         send_url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
@@ -1135,6 +1142,7 @@ class MailAPIController(http.Controller):
                 mime_msg["In-Reply-To"] = f"<{message_id}>"
                 mime_msg["References"] = f"<{message_id}>"
             mime_msg.attach(MIMEText(body_html, "html"))
+            
 
             raw_str = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
             try:
@@ -1391,7 +1399,7 @@ class MailAPIController(http.Controller):
                         if msg.date_received
                         else ""
                     ),
-                    "body": msg.body,
+                    "body": replace_cid_links(msg.body, attachments),
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",

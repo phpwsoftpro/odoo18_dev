@@ -1,9 +1,13 @@
 /** @odoo-module **/
 
+import { prepareImagesForSending } from "./onForward";
+
 let attachedFiles = [];
 
 export function onSendEmail() {
     const composeData = this.state.composeData || {};
+    // chuẩn hóa lại src trước khi lấy HTML
+    prepareImagesForSending();
     const thread_id = composeData.thread_id || null;
     const message_id = composeData.message_id || null;
 
@@ -49,8 +53,19 @@ export function onSendEmail() {
 
     // ✅ Thêm file đính kèm
     this.state.attachments.forEach((f) => {
-        formData.append('attachments[]', f.fileObj, f.name);
+        const file = f.fileObj;
+
+        // Nếu là ảnh inline
+        if (f.cid && f.content && f.mimetype) {
+            const blob = dataURLToBlob(f.originalSrc);
+            const fileWithName = new File([blob], f.name, { type: f.mimetype });
+            formData.append("attachments[]", fileWithName, f.name);
+        } else {
+            // File upload thông thường
+            formData.append("attachments[]", file, f.name);
+        }
     });
+
 
     console.log("🚀 FormData:", [...formData.entries()]);
 
@@ -77,6 +92,17 @@ export function onSendEmail() {
             alert("⚠️ Có lỗi khi gửi email, xem console.");
             console.error("❌ Gửi mail lỗi:", err);
         });
+}
+function dataURLToBlob(dataURL) {
+    const parts = dataURL.split(',');
+    const mime = parts[0].match(/:(.*?);/)[1];
+    const byteString = atob(parts[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mime });
 }
 
 // ✅ Gắn sự kiện xử lý chọn file
