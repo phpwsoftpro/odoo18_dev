@@ -1435,17 +1435,6 @@ class MailAPIController(http.Controller):
                 domain.append(("is_draft_mail", "=", True))
             elif kwargs["searchIn"] == "spam":
                 domain.append(("is_spam", "=", True))
-        # Size filter
-        # if kwargs.get("sizeValue"):
-        #     size_field = "attachment_size"
-        #     size = int(kwargs["sizeValue"])
-        #     if kwargs.get("sizeUnit") == "MB":
-        #         size = size * 1024 * 1024
-        #     elif kwargs.get("sizeUnit") == "KB":
-        #         size = size * 1024
-        #     op = ">=" if kwargs.get("sizeOperator") == "greater" else "<="
-        #     domain.append((size_field, op, size))
-        # Date filter
         if kwargs.get("dateValue"):
             domain.append(("date_received", "<=", kwargs["dateValue"] + " 23:59:59"))
         if kwargs.get("dateWithin"):
