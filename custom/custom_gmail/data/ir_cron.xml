@@ -1,10 +1,10 @@
 <odoo>
         <record id="cron_fetch_gmail_accounts_every_minute" model="ir.cron">
                 <field name="name">Fetch Gmail Accounts Every Minute</field>
-                <field name="model_id" ref="model_gmail_account"/>
+                <field name="model_id" ref="custom_gmail.model_gmail_account"/>
                 <field name="state">code</field>
                 <field name="code">model.cron_fetch_gmail_accounts()</field>
-                <field name="interval_number">5</field>                <!-- chạy mỗi 1 phút -->
+                <field name="interval_number">1</field>                <!-- chạy mỗi 1 phút -->
                 <field name="interval_type">minutes</field>
                 <field name="active">True</field>
         </record>
