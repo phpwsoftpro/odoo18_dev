@@ -519,7 +519,7 @@ export default xml`
 
                                         <div class="message-content">
                                             
-                                            <t t-raw="threadMsg.body"/>
+                                            <t t-raw="threadMsg.body || threadMsg.body_html"/>
                                         </div>
 
                                     </div>
