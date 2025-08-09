@@ -82,6 +82,7 @@ export async function extractImagesAsCIDAttachments(html) {
 // ✅ XỬ LÝ GỬI FORWARD
 export function onForward(ev, msg) {
     ev.preventDefault();
+    
     ev.stopPropagation();
 
     const dropdown = document.querySelector(".dropdown-menu.show, .o-mail-message-options-dropdown.show");
