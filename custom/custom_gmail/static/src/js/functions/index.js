@@ -10,3 +10,4 @@ export { openComposeModal } from "./openComposeModal";
 export { fillComposeForm } from "./fillComposeForm";
 export { onSendEmail } from "./onSendEmail";
 export { onSnooze } from "./onSnooze";
+export { onDeleteMessage } from "./onDeleteMessage";

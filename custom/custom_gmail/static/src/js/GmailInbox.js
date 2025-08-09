@@ -3,7 +3,7 @@ import { Component, markup, onMounted } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { initCKEditor, loadCKEditor } from "./ckeditor";
-import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, toggleStar } from "./functions/index";
+import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, onDeleteMessage, toggleStar } from "./functions/index";
 import { openComposeModal } from "./functions/openComposeModal";
 import { initialState } from "./state";
 import { loadStarredState, saveStarredState } from "./storageUtils";
@@ -118,6 +118,7 @@ export class GmailInbox extends Component {
         this.onReply = onReply.bind(this);
         this.onReplyAll = onReplyAll.bind(this);
         this.onForward = onForward.bind(this);
+        this.onDeleteMessage = onDeleteMessage.bind(this);
         this.toggleDropdown = toggleDropdown.bind(this);
         this.toggleDropdownVertical = toggleDropdownVertical.bind(this);
         this.toggleAccounts = toggleAccounts.bind(this);
