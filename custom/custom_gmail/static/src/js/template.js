@@ -14,8 +14,17 @@ export default xml`
         </div>
         <div class="gmail-search">
             <input type="text" placeholder="Search mail" />
-            <button class="search-btn" t-on-click="toggleSearchPopup">
-                <i class="fa fa-search"></i>
+            <button class="search-advanced-btn gmail-advanced-icon" t-on-click="toggleSearchPopup">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <g stroke="#444" stroke-width="2" stroke-linecap="round">
+                <line x1="7" y1="7" x2="17" y2="7"/>
+                <circle cx="10" cy="7" r="2" fill="#fff"/>
+                <line x1="7" y1="12" x2="17" y2="12"/>
+                <circle cx="14" cy="12" r="2" fill="#fff"/>
+                <line x1="7" y1="17" x2="17" y2="17"/>
+                <circle cx="12" cy="17" r="2" fill="#fff"/>
+                </g>
+            </svg>
             </button>
             <div t-if="state.showSearchPopup" class="advanced-search-popup">
                 <div class="popup-body">
@@ -38,19 +47,6 @@ export default xml`
                     <div class="form-row">
                         <label>Doesn't have:</label>
                         <input type="text" t-model="state.searchQuery.doesntHave" />
-                    </div>
-                    <div class="form-row">
-                        <label>Size:</label>
-                        <select t-model="state.searchQuery.sizeOperator" style="max-width:110px;">
-                            <option value="greater">greater than</option>
-                            <option value="less">less than</option>
-                        </select>
-                        <input type="number" t-model="state.searchQuery.sizeValue" style="max-width:80px; margin: 0 8px;" min="0"/>
-                        <select t-model="state.searchQuery.sizeUnit" style="max-width:70px;">
-                            <option value="MB">MB</option>
-                            <option value="KB">KB</option>
-                        </select>
-                    </div>
                     <div class="form-row">
                         <label>Date within:</label>
                         <select t-model="state.searchQuery.dateWithin" style="max-width:110px;">
@@ -58,7 +54,10 @@ export default xml`
                             <option value="1 week">1 week</option>
                             <option value="1 month">1 month</option>
                         </select>
-                        <input type="date" t-model="state.searchQuery.dateValue" style="max-width:150px; margin-left:8px;" />
+                        <input type="date"
+                            t-model="state.searchQuery.dateValue"
+                            t-att-max="(new Date()).toISOString().slice(0,10)"
+                            style="max-width:150px; margin-left:8px;" />
                     </div>
                     <div class="form-row">
                         <label>Search:</label>
@@ -79,7 +78,7 @@ export default xml`
                     </div>
                 </div>
                 <div class="popup-footer">
-                    <button class="search-btn" t-on-click="onSearch">Search</button>
+                    <button class="search-btn" t-on-click="onSearchAdvanced">Search</button>
                 </div>
             </div>
         </div>

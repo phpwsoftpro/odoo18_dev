@@ -17,9 +17,7 @@
     position: relative;
     display: flex;
     align-items: center;
-    margin-top: 16px;
     width: 500px;
-    height: 40px;
     overflow: visible;
 }
 
@@ -106,4 +104,26 @@
 }
 .popup-footer .search-btn:hover {
     background: #125ea2;
+}
+.gmail-advanced-icon {
+    background: #f5f7fa;
+    border: 1px solid #e0e3e7;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin-left: 8px;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+.gmail-advanced-icon svg {
+    display: block;
+    margin: 0 auto;
+}
+.gmail-advanced-icon:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    border-color: #c8c8c8;
 }
