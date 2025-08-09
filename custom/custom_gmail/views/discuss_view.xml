@@ -16,8 +16,9 @@
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>
+
     <!-- Define the action for the OWL-based Gmail UI -->
-    <record id="action_gmail_message_ui" model="ir.actions.server">
+    <record id="action_gmail_message_ui_new" model="ir.actions.server">
         <field name="name">Gmail Messages UI</field>
         <field name="model_id" ref="base.model_res_users"/>
         <field name="state">code</field>
@@ -25,9 +26,11 @@
             action = env['custom_gmail.gmail.sync'].redirect_to_gmail_messages()
         </field>
     </record>
+
+    <!-- OWL Template for Gmail UI -->
     <data>
         <template id="gmail_inbox_template" name="Gmail Inbox">
-            <t t-name="custom_gmail.GmailInbox">                <!-- ✅ Ensure this matches JS file -->
+            <t t-name="custom_gmail.GmailInbox">
                 <div class="o_gmail_inbox">
                     <h2>Gmail Messages</h2>
                     <table class="o_gmail_table">
@@ -41,15 +44,9 @@
                         <tbody>
                             <t t-foreach="state.messages" t-as="msg">
                                 <tr t-on-click="selectMessage(msg)">
-                                    <td>
-                                        <t t-esc="msg.email_sender"/>
-                                    </td>
-                                    <td>
-                                        <t t-esc="msg.subject"/>
-                                    </td>
-                                    <td>
-                                        <t t-esc="msg.date_received"/>
-                                    </td>
+                                    <td><t t-esc="msg.email_sender"/></td>
+                                    <td><t t-esc="msg.subject"/></td>
+                                    <td><t t-esc="msg.date_received"/></td>
                                 </tr>
                             </t>
                         </tbody>
@@ -57,9 +54,7 @@
 
                     <t t-if="state.selectedMessage">
                         <div class="o_gmail_message_detail">
-                            <h3>
-                                <t t-esc="state.selectedMessage.subject"/>
-                            </h3>
+                            <h3><t t-esc="state.selectedMessage.subject"/></h3>
                             <t t-raw="state.selectedMessage.body"/>
                         </div>
                     </t>
@@ -68,14 +63,13 @@
         </template>
     </data>
 
-    <!-- Add a new main menu item under Discuss -->
+    <!-- Main menu under Discuss -->
     <menuitem id="menu_gmail_sync" name="Gmail Sync" parent="mail.menu_root_discuss" sequence="10" />
 
-    <!-- Submenu for triggering Gmail Sync action -->
-    <!-- <menuitem id="menu_gmail_sync_action" name="Sync Gmail Now" parent="menu_gmail_sync" action="custom_gmail.action_gmail_sync" sequence="10" /> -->
-
-    <!-- Submenu for viewing Gmail Messages -->
-    <menuitem id="menu_gmail_messages" name="Gmail Messages" parent="menu_gmail_sync" action="custom_gmail.action_gmail_message_ui" sequence="20"/>
-
-
+    <!-- Menu for Gmail Messages using correct action ID -->
+    <menuitem id="menu_gmail_messages"
+              name="Gmail Messages"
+              parent="menu_gmail_sync"
+              action="custom_gmail.action_gmail_message_ui_new"
+              sequence="20"/>
 </odoo>

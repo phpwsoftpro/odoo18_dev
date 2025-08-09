@@ -53,7 +53,7 @@ class OutlookMessageController(http.Controller):
                         "date": detail.get("receivedDateTime"),
                         "body": detail.get("body", {}).get("content", "No Content"),
                         "bodyPreview": detail.get("bodyPreview", ""),
-                        "type": "outlook",
+                        "type": "outlook",  
                     }
                 )
             else:
