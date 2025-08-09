@@ -160,10 +160,35 @@ export class GmailInbox extends Component {
             this.state.showCategoryLabels = !this.state.showCategoryLabels;
             this.render();
         }
+        this.onSearch = () => {
+            const { from, to, subject, hasWords, dateWithin } = this.state.searchQuery;
+            this.loadMessagesWithSearch(from, to, subject, hasWords, dateWithin);  // Call your search logic
+        };
 
+        this.state.showAdvancedSearch = false;  // Add this state for controlling the popup
 
+        // Add this method to toggle the visibility of the advanced search form
+        this.toggleAdvancedSearch = () => {
+            this.state.showAdvancedSearch = !this.state.showAdvancedSearch;
+            this.render();  // Re-render to reflect the state change
+        };
 
+        // Example search query state
+        this.state.searchQuery = {
+            from: '',
+            to: '',
+            subject: '',
+            hasWords: '',
+            dateWithin: '1'  // Default: 1 day
+        };
+        this.toggleSearchPopup = () => {
+            this.state.showSearchPopup = !this.state.showSearchPopup;
+            this.render();  // Cập nhật lại giao diện
+        };
 
+        // Khởi tạo giá trị cho showSearchPopup
+        this.state.showSearchPopup = false;
+        
 
         this._onClickOutsideVertical = (event) => {
             const dropdown = document.querySelector(".dropdown-menu-vertical");
