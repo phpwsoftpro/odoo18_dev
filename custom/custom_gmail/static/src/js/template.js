@@ -47,6 +47,7 @@ export default xml`
                     <div class="form-row">
                         <label>Doesn't have:</label>
                         <input type="text" t-model="state.searchQuery.doesntHave" />
+                    </div>
                     <div class="form-row">
                         <label>Date within:</label>
                         <select t-model="state.searchQuery.dateWithin" style="max-width:110px;">
