@@ -1,0 +1,180 @@
+/* -------------  DESIGN TOKENS  ------------- */
+:root {
+  --block-max: 288px;
+  --block-min: 80px;
+  --nav-fs-max: 78px;
+  --nav-fs-min: 16px;
+  --slogan-fs-max: 65px;
+  --slogan-fs-min: 14px;
+  --green-dark: #006633;
+  --green-light: #33FFCC;
+  --blue: #3366FF;
+}
+
+/* -------------  HEADER WRAPPER  ------------- */
+.solid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(4px, 0.6vw, 12px);
+  gap: clamp(4px, 0.8vw, 16px);
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* -------------  LOGO & CHAT  ------------- */
+.custom-logo img {
+  height: clamp(var(--block-min), 10vw, var(--block-max));
+  width: clamp(100px, 12vw, 288px);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.chat-box {
+  height: clamp(var(--block-min), 10vw, var(--block-max));
+  width: clamp(100px, 12vw, 288px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chat-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* -------------  CENTER BLOCK  ------------- */
+.center-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(2px, 0.4vw, 6px);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* -------------  NAVIGATION  ------------- */
+.custom-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(4px, 1vw, 16px);
+  flex-wrap: nowrap;
+  overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
+
+}
+
+.custom-nav a,
+.custom-nav .music-icon {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: clamp(var(--nav-fs-min), 2.5vw, var(--nav-fs-max));
+  line-height: 1.2;
+  text-decoration: none;
+  -webkit-text-stroke-width: 0.4px;
+}
+
+.custom-nav a:nth-child(1) {
+  color: var(--green-dark);
+  -webkit-text-stroke-color: var(--blue);
+}
+
+.custom-nav a:nth-child(2) {
+  color: var(--green-light);
+  -webkit-text-stroke-color: var(--green-dark);
+}
+
+.custom-nav a:nth-child(n+3):nth-child(-n+5) {
+  color: var(--blue);
+  -webkit-text-stroke-color: var(--green-dark);
+}
+
+.music-icon {
+  width: 1em;
+  height: 1em;
+  transform: rotate(14deg);
+  color: var(--blue);
+  -webkit-text-stroke: 0.4px var(--green-dark);
+  flex-shrink: 0;
+}
+
+/* -------------  SLOGAN BAR  ------------- */
+.slogan-bar {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(4px, 0.8vw, 12px);
+  padding: clamp(6px, 1vw, 12px) clamp(16px, 2vw, 32px);
+  background: var(--green-light);
+  border: 2px solid var(--blue);
+  border-radius: 10px;
+  box-sizing: border-box;
+  max-width: 100%;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.slogan-bar span {
+  font-family: 'Poppins', sans-serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(var(--slogan-fs-min), 2.2vw, var(--slogan-fs-max));
+  line-height: 1.4;
+  letter-spacing: clamp(0.2em, 1.1vw, 0.4em);
+  -webkit-text-stroke-width: 0.4px;
+  white-space: nowrap;
+}
+
+.slogan-bar span:nth-child(-n+2) {
+  color: var(--green-dark);
+  -webkit-text-stroke-color: var(--blue);
+}
+
+.slogan-bar .highlight {
+  color: var(--blue);
+  -webkit-text-stroke-color: var(--green-dark);
+}
+
+/* -------------  RESPONSIVE BREAKPOINTS  ------------- */
+@media (max-width: 992px) {
+  .custom-nav {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 768px) {
+  .solid-header {
+    flex-wrap: nowrap;
+  }
+
+  .custom-logo img,
+  .chat-box {
+    height: clamp(60px, 18vw, 90px);
+    width: clamp(70px, 18vw, 130px);
+  }
+}
+
+@media (max-width: 480px) {
+
+  .custom-nav a,
+  .custom-nav .music-icon,
+  .slogan-bar span {
+    font-size: 12px;
+  }
+
+  .custom-logo img,
+  .chat-box {
+    height: 48px;
+    width: 70px;
+  }
+}

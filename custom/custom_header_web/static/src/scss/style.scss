@@ -1,0 +1,181 @@
+.solid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: nowrap;
+  padding: 10px 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  @include respond(tablet) {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+}
+
+.custom-logo {
+  flex: 0 0 auto;
+
+  img {
+    width: clamp(80px, 10vw, 192px);
+    height: clamp(60px, 8vw, 132px);
+    object-fit: contain;
+    display: block;
+  }
+}
+
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 1000px;
+  box-sizing: border-box;
+  gap: 16px;
+
+  @include respond(tablet) {
+    max-width: 100%;
+    padding: 0 16px;
+    gap: 12px;
+  }
+}
+
+.custom-nav {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  overflow: hidden;
+
+  a,
+  .music-icon {
+    font-family: $font-main;
+    font-weight: 700;
+    font-size: clamp(16px, 3vw, $max-nav-size);
+    text-decoration: none;
+    padding: 8px 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
+    -webkit-text-stroke: 0.5px transparent;
+
+    &:nth-child(1) {
+      color: $green;
+      -webkit-text-stroke: 0.5px $blue;
+    }
+
+    &:nth-child(2) {
+      color: $teal;
+      -webkit-text-stroke: 0.5px $green;
+    }
+
+    &:nth-child(n + 3):nth-child(-n + 5) {
+      color: $blue;
+      -webkit-text-stroke: 0.5px $green;
+    }
+  }
+
+  .music-icon {
+    color: #888;
+    font-size: clamp(16px, 1.5vw, 24px);
+  }
+
+  @include respond(tablet) {
+    flex-wrap: wrap;
+    justify-content: center;
+
+    a {
+      font-size: clamp(14px, 3vw, 38px);
+      padding: 6px 10px;
+      -webkit-text-stroke: 0.4px;
+    }
+  }
+
+  @include respond(mobile) {
+    flex-direction: column;
+    gap: 10px;
+
+    a {
+      font-size: 18px;
+      padding: 4px 8px;
+    }
+  }
+}
+
+.slogan-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 9px;
+  background: $teal;
+  border: 3px solid $blue;
+  border-radius: 14px;
+  padding: 12px 20px;
+  width: 100%;
+  box-sizing: border-box;
+
+  span {
+    font-family: $font-main;
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(16px, 3vw, $max-slogan-size);
+    text-align: center;
+    line-height: 1.2;
+    width: 100%;
+    letter-spacing: 4px;
+    -webkit-text-stroke: 0.5px $green;
+    color: $green;
+
+    &.highlight {
+      color: $blue;
+      -webkit-text-stroke: 0.5px $green;
+    }
+  }
+
+  @include respond(tablet) {
+    flex-wrap: wrap;
+    padding: 10px;
+    gap: 6px;
+
+    span {
+      flex: 1 1 auto;
+      font-size: clamp(14px, 3vw, 30px);
+      letter-spacing: 2px;
+    }
+  }
+
+  @include respond(mobile) {
+    span {
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+  }
+}
+
+.chat-box {
+  flex: 0 0 auto;
+  width: clamp(60px, 10vw, 192px);
+  height: clamp(60px, 10vw, 132px);
+  background: url('/custom_header_web/static/src/img/CHAT-btn%207.svg') no-repeat center/contain;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  @include respond(tablet) {
+    margin-top: 16px;
+    width: 160px;
+    height: 90px;
+  }
+
+  @include respond(mobile) {
+    width: 120px;
+    height: 70px;
+  }
+}

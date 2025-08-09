@@ -1,0 +1,195 @@
+/* Build from SCSS (sass main.scss main.css) */
+
+// === Variables ===
+$color-green: #006633;
+$color-blue: #3366FF;
+$color-cyan: #33FFCC;
+$font-main: 'Poppins', sans-serif;
+
+.solid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: nowrap;
+  padding: 10px 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+// === LOGO ===
+.custom-logo {
+  flex: 0 0 auto;
+}
+.custom-logo img {
+  width: clamp(120px, 15vw, 288px);
+  height: clamp(80px, 12vw, 200px);
+  object-fit: contain;
+  display: block;
+}
+
+// === CENTER BLOCK ===
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 1000px;
+  box-sizing: border-box;
+  gap: 16px;
+}
+
+// === NAVIGATION ===
+.custom-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+  justify-items: center;
+}
+
+.custom-nav a,
+.custom-nav .music-icon {
+  font-family: $font-main;
+  font-weight: 700;
+  font-size: clamp(24px, 5vw, 78px);
+  text-decoration: none;
+  padding: 8px 12px;
+  white-space: nowrap;
+  -webkit-text-stroke: 0.5px transparent;
+}
+
+.custom-nav a:nth-child(1) {
+  color: $color-green;
+  -webkit-text-stroke: 0.5px $color-blue;
+}
+
+.custom-nav a:nth-child(2) {
+  color: $color-cyan;
+  -webkit-text-stroke: 0.5px $color-green;
+}
+
+.custom-nav a:nth-child(3),
+.custom-nav a:nth-child(4),
+.custom-nav a:nth-child(5) {
+  color: $color-blue;
+  -webkit-text-stroke: 0.5px $color-green;
+}
+
+.music-icon {
+  color: #888;
+  font-size: clamp(18px, 2vw, 28px);
+}
+
+// === SLOGAN ===
+.slogan-bar {
+  display: flex;
+  gap: 9px;
+  background: $color-cyan;
+  border: 3px solid $color-blue;
+  border-radius: 14px;
+  padding: 12px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.slogan-bar span {
+  font-family: $font-main;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(20px, 4vw, 65px);
+  text-align: center;
+  line-height: 1.2;
+  width: auto;
+  letter-spacing: 4px;
+  -webkit-text-stroke: 0.5px $color-green;
+  color: $color-green;
+}
+
+.slogan-bar .highlight {
+  color: $color-blue;
+  -webkit-text-stroke: 0.5px $color-green;
+}
+
+// === CHAT BOX ===
+.chat-box {
+  flex: 0 0 auto;
+  width: clamp(80px, 15vw, 288px);
+  height: clamp(80px, 12vw, 200px);
+  background: url('/custom_header_web/static/src/img/CHAT-btn%207.svg') no-repeat center/contain;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+// === RESPONSIVE ===
+@media (max-width: 1024px) {
+  .solid-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .center-content {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .custom-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .custom-nav a {
+    font-size: clamp(18px, 4vw, 48px);
+    padding: 6px 10px;
+    -webkit-text-stroke: 0.4px;
+  }
+
+  .slogan-bar {
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .slogan-bar span {
+    font-size: clamp(18px, 3.5vw, 40px);
+    letter-spacing: 3px;
+  }
+
+  .chat-box {
+    margin-top: 16px;
+    width: 180px;
+    height: 100px;
+  }
+}
+
+@media (max-width: 600px) {
+  .custom-nav {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .custom-nav a {
+    font-size: 20px;
+    padding: 4px 8px;
+  }
+
+  .slogan-bar span {
+    font-size: 24px;
+    letter-spacing: 2px;
+  }
+
+  .chat-box {
+    width: 140px;
+    height: 80px;
+  }
+}

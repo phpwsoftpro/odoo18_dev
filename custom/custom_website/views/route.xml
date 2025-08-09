@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <record id="custom_homepage_route" model="website.page">
+      <field name="name">Homepage</field>
+      <field name="url">/</field>
+      <field name="view_id" ref="custom_website.homepage"/>
+      <field name="website_published" eval="True"/>
+    </record>
+  </data>
+</odoo>

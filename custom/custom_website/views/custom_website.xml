@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="custom_header_layout" inherit_id="website.layout" name="Custom Header ELECTRONIA">
+        <xpath expr="//header" position="replace">
+            <header id="custom_header" class="electronic-header">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+                <!-- Thanh xanh phía trên -->
+                <div class="topbar bg-primary text-white d-flex justify-content-end px-5 py-1">
+                    <div class="lang-switch">
+                        <a t-attf-class="#{ 'active' if request.lang == 'lv_LV' else '' }" href="/lv">LV</a>
+                        <a t-attf-class="#{ 'active' if request.lang == 'en_US' else '' }" href="/en">EN</a>
+                        <a t-attf-class="#{ 'active' if request.lang == 'ru_RU' else '' }" href="/ru">RU</a>
+                    </div>
+                </div>
+
+                <!-- Menu trắng + logo + nav -->
+                <div class="bg-white shadow-sm">
+                    <div class="container d-flex justify-content-between align-items-center">
+                        <!-- Logo -->
+                        <div class="logo">
+                            <a href="/">
+                                <img src="/custom_website/static/src/img/logo.svg" alt="Logo" />
+
+                            </a>
+                        </div>
+
+                        <!-- Menu -->
+                        <div class="main-menu">
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path in ['/'] else '' }" href="/">Utilizācija</a>
+
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/industries' else '' }" href="/industries">Nozares</a>
+
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/services' else '' }" href="/services">Pakalpojumi</a>
+
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/certificates' else '' }" href="/certificates">Ilgtspējas sertifikāti</a>
+
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/about' else '' }" href="/about">Par Elektronia</a>
+
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/contact' else '' }" href="/contact">Kontakti</a>
+
+
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- Banner -->
+            <div class="hero-video-banner">
+                <video autoplay="autoplay" muted="muted" loop="loop" playsinline="playsinline">
+                    <source src="/custom_website/static/src/video/banner.mp4" type="video/mp4" />
+                </video>
+
+                <div class="hero-content">
+                    <img src="/custom_website/static/src/img/logo_fffff.svg" alt="Logo" />
+                    <div class="banner-heading">
+                        <h1>SERTIFICĒTS ELEKTRONISKO ATKRITUMU</h1>
+                        <h1>PIEŅEMŠANAS UN PĀRSTRĀDES</h1>
+                        <h1>PARTNERIS</h1>
+                    </div>
+                    <a href="/contact" class="btn">PIETEIKT PAKALPOJUMU</a>
+                </div>
+            </div>
+
+            <!-- Menu Icon -->
+            <div class="industry-base">
+                <div class="industry-item active">
+                    <img src="/custom_website/static/src/img/Vector_green.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Valsts un pašvaldības</p>
+                </div>
+                <div class="industry-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Elektronikas ražošana</p>
+                </div>
+                <div class="industry-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Medicīnas iestādes</p>
+                </div>
+                <div class="industry-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Izglītības iestādes</p>
+                </div>
+                <div class="industry-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Telekomunikācija</p>
+                </div>
+                <div class="industry-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Atkritumu apsaimniekotāji</p>
+                </div>
+                <div class="industry-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class="logo_vector" alt="Title Icon" />
+                    <p>Biroji</p>
+                </div>
+            </div>
+
+
+            <!-- about -->
+            <div class="about-section">
+                <div class="about-item">
+                    <img src="/custom_website/static/src/img/vector.svg" class= "logo_vector-section" alt="Title Icon" />
+                    <span>Pieteikt pakalpojumu!</span>
+                </div>
+                <div class="about-item">
+                    <i class="fas fa-phone"></i>
+                    <span>+371 67588300</span>
+                </div>
+                <div class="about-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Rakstīt!</span>
+                </div>
+            </div>
+
+            <!-- Service depcription block  -->
+            <div class="service-description-block">
+                <div class="text-box">
+                    <div class="title-row">
+                        <img src="/custom_website/static/src/img/Vector_blue.svg" class= "logo_vector-section" alt="Title Icon" />
+                        <h2>PAKALPOJUMU APRAKSTS</h2>
+                    </div>
+                    <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed lacinia, ligula ac placerat congue, tortor quam malesuada ligula, vitae maximus velit tellus ac arcu. Phasellus eu nisi metus. Pellentesque sed ultricies sem, eget porttitor massa. Aenean sit amet dui enim. Proin in gravida sapien, quis aliquam felis. Nulla aliquam sodales ligula, vel pretium leo laoreet vel. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer id aliquet sem, quis varius nibh. Nullam vitae nibh eget lorem interdum pulvinar sit amet in mi. Morbi nec dolor sed lorem pretium vestibulum vitae vel mi. 
+                    </p>
+                    <p>
+            In sagittis aliquet elit ac dignissim. Etiam posuere ut ipsum vitae mollis.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed lacinia, ligula ac placerat congue, tortor quam malesuada ligula, vitae maximus velit tellus ac arcu. Phasellus eu nisi metus. Pellentesque sed ultricies sem, eget porttitor massa. Aenean sit amet dui enim. Proin in gravida sapien, quis aliquam felis. Nulla aliquam sodales ligula, vel pretium leo laoreet vel. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer id aliquet sem, quis varius nibh. Nullam vitae nibh eget lorem interdum pulvinar sit amet in mi. Morbi nec dolor sed lorem pretium vestibulum vitae vel mi. In sagittis aliquet elit ac dignissim. Etiam posuere ut ipsum vitae mollis.
+                    </p>
+                </div>
+                <div class="image-box">
+                    <img src="/custom_website/static/src/img/Rectangle.png" alt="Service Man" />
+                    <a href="#" class="chat-button">
+                        <i class="fab fa-whatsapp"></i>
+                   Sākt sarunu
+                    </a>
+                </div>
+            </div>
+
+            <!-- section-block-PARTNERI 1 -->
+            <div class="recycle-process-block">
+                <div class="icon-flow">
+                    <img src="/custom_website/static/src/img/vector.svg" style="width:80px; height: 80px" alt="Start"/>
+                    <img src="/custom_website/static/src/img/Layer_1.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/Vector_1.svg" style="width:80px; height: 74px" alt="Trash Bin"/>
+                    <img src="/custom_website/static/src/img/Layer_1.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/Vector_2.svg" style="width:80px; height: 68px" alt="Sort"/>
+                    <img src="/custom_website/static/src/img/Layer_1.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/Vector_3.svg" style="width:80px; height: 58px" alt="Truck"/>
+                    <img src="/custom_website/static/src/img/Layer_1.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/Vector_4.svg" style="width:80px; height: 82px" alt="Factory"/>
+                    <img src="/custom_website/static/src/img/Layer_1.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/vector.svg" style="width:80px; height: 80px" alt="End"/>
+                </div>
+            </div>
+
+            <!-- Service depcription block 2 -->
+            <div class="service-description-block">
+                <div class="image-box">
+                    <img src="/custom_website/static/src/img/Rectangle_section.png" alt="Service Man" />
+                </div>
+                <div class="text-box">
+                    <div class="title-row">
+                        <img src="/custom_website/static/src/img/Vector_blue.svg" class= "logo_vector-section" alt="Title Icon" />
+                        <h2>PRIEKŠROCĪBAS</h2>
+                    </div>
+                    <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed lacinia, ligula ac placerat congue, tortor quam malesuada ligula, vitae maximus velit tellus ac arcu. Phasellus eu nisi metus. Pellentesque sed ultricies sem, eget porttitor massa. Aenean sit amet dui enim. Proin in gravida sapien, quis aliquam felis. Nulla aliquam sodales ligula, vel pretium leo laoreet vel. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer id aliquet sem, quis varius nibh. Nullam vitae nibh eget lorem interdum pulvinar sit amet in mi. Morbi nec dolor sed lorem pretium vestibulum vitae vel mi. </p>
+                    <p>
+           In sagittis aliquet elit ac dignissim. Etiam posuere ut ipsum vitae mollis.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed lacinia, ligula ac placerat congue, tortor quam malesuada ligula, vitae maximus velit tellus ac arcu. Phasellus eu nisi metus. Pellentesque sed ultricies sem, eget porttitor massa. Aenean sit amet dui enim. Proin in gravida sapien, quis aliquam felis. Nulla aliquam sodales ligula, vel pretium leo laoreet vel. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer id aliquet sem, quis varius nibh. Nullam vitae nibh eget lorem interdum pulvinar sit amet in mi. Morbi nec dolor sed lorem pretium vestibulum vitae vel mi. In sagittis aliquet elit ac dignissim. Etiam posuere ut ipsum vitae mollis.</p>
+                </div>
+            </div>
+
+            <!-- section-block-PARTNERI 2 -->
+            <div class="partneri-block">
+                <div class="icon-flow">
+                    <img src="/custom_website/static/src/img/ELECTRUM.svg" style="width:200px; height: 67px; object-fit: cover;" alt="Start"/>
+                    <img src="/custom_website/static/src/img/tet.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/logo_en.svg" style="width:72px; height: 60px" alt="Trash Bin"/>
+                    <img src="/custom_website/static/src/img/ELECTRUM.svg" style="width:200px; height: 67px; object-fit: cover;" alt="Start"/>
+                    <img src="/custom_website/static/src/img/tet.svg" class="layer-arrow" alt="Arrow"/>
+                    <img src="/custom_website/static/src/img/logo_en.svg" style="width:72px; height: 60px" alt="Trash Bin"/>
+                </div>
+            </div>
+
+            <!-- Contact Form Block -->
+            <section class="contact-form-block">
+                <div class="form-header">
+                    <img src="/custom_website/static/src/img/vector.svg" class= "logo_vector-section" alt="Title Icon" />
+                    <h3>Pieteikt / pārdot atkritumus pārstrādei?</h3>
+                </div>
+
+                <form class="contact-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Kontaktpersona*</label>
+                            <input type="text" required="required" />
+                        </div>
+                        <div class="form-group">
+                            <label>Uzņēmums*</label>
+                            <input type="text" required="required" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tālrunis*</label>
+                            <input type="text" required="required" />
+                        </div>
+                        <div class="form-group">
+                            <label>E-pasts*</label>
+                            <input type="email" required="required" />
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Piezīmes</label>
+                        <textarea rows="4"></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Nosūtīt pieteikumu!</button>
+                </form>
+            </section>
+
+            <!-- Footer -->
+            <footer class="site-footer">
+                <div class="footer-content">
+                    <p>© 2025 Elektronia. Visas tiesības aizsargātas</p>
+                    <p>
+                        <a href="#">Privātuma politika</a>
+                    </p>
+                </div>
+            </footer>
+
+
+        </xpath>
+    </template>
+</odoo>

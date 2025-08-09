@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="custom_header_layout" inherit_id="website.layout" name="Custom Header ELECTRONIA">
+        <xpath expr="//head" position="inside">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+        </xpath>
+    </template>
+</odoo>
+

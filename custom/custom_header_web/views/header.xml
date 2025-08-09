@@ -1,0 +1,44 @@
+<odoo>
+    <template id="custom_header_solid_results" inherit_id="website.layout" name="Custom Header - Solid Results">
+        <xpath expr="//header" position="replace">
+            <header class="solid-header">
+                <!-- LOGO -->
+                <div class="custom-logo">
+                    <img src="/custom_header_web/static/src/img/LOGO%209.svg" alt="Logo" />
+                </div>
+
+                <!-- CENTER -->
+                <div class="center-content">
+                    <!-- NAVIGATION -->
+                    <nav class="custom-nav">
+                        <a href="#">HOME</a>
+                        <a href="#">SERVICES</a>
+                        <a href="#">ABOUT</a>
+                        <a href="#">BLOG</a>
+                        <a href="#">CONTACT</a>
+                        <img src="/custom_header_web/static/src/img/musical-note.png" class="music-icon" alt="Note" />
+                    </nav>
+
+                    <!-- SLOGAN -->
+                    <div class="slogan-bar">
+                        <span>25</span>
+                        <span>YEARS</span>
+                        <span class="highlight">OF</span>
+                        <span class="highlight">SOLID</span>
+                        <span class="highlight">RESULTS</span>
+                    </div>
+                </div>
+
+                <!-- CHAT BOX -->
+                <div class="chat-box">
+                    <img src="/custom_header_web/static/src/img/chat_btn_7.svg" alt="Chat With Robin"/>
+                </div>
+
+            </header>
+        </xpath>
+
+        <xpath expr="//head" position="inside">
+            <link rel="stylesheet" href="/custom_header_web/static/src/css/custom_header.css"/>
+        </xpath>
+    </template>
+</odoo>

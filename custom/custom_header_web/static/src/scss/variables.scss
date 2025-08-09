@@ -1,0 +1,15 @@
+$green: #006633;
+$teal: #33FFCC;
+$blue: #3366FF;
+$font-main: 'Poppins', sans-serif;
+$max-nav-size: 52px; // Reduced to ~2/3 of original 78px
+$max-slogan-size: 44px; // Reduced to ~2/3 of original 65px
+
+@mixin respond($break) {
+  @if $break == tablet {
+    @media (max-width: 1024px) { @content; }
+  }
+  @else if $break == mobile {
+    @media (max-width: 600px) { @content; }
+  }
+}

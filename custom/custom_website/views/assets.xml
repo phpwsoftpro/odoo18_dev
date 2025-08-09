@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="custom_header_layout" inherit_id="website.layout" name="Custom Header ELECTRONIA">
+        <xpath expr="//head" position="inside">
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700&amp;display=swap"/>
+        </xpath>
+    </template>
+</odoo>
+

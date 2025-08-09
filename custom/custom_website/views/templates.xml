@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <!-- HEADER TEMPLATE -->
+        <template id="custom_header" name="Custom Header">
+            <header id="custom_header" class="electronic-header">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+                <div class="topbar bg-primary text-white d-flex justify-content-end px-5 py-1">
+                    <div class="lang-switch">
+                        <a t-attf-class="#{ 'active' if request.lang == 'lv_LV' else '' }" href="/lv">LV</a>
+                        <a t-attf-class="#{ 'active' if request.lang == 'en_US' else '' }" href="/en">EN</a>
+                        <a t-attf-class="#{ 'active' if request.lang == 'ru_RU' else '' }" href="/ru">RU</a>
+                    </div>
+                </div>
+                <div class="bg-white shadow-sm">
+                    <div class="container d-flex justify-content-between align-items-center">
+                        <div class="logo">
+                            <a href="/">
+                                <img src="/custom_website/static/src/img/logo.svg" alt="Logo" />
+                            </a>
+                        </div>
+                        <div class="main-menu">
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/' else '' }" href="/">Utilizācija</a>
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/industries' else '' }" href="/industries">Nozares</a>
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/services' else '' }" href="/services">Pakalpojumi</a>
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/certificates' else '' }" href="/certificates">Ilgtspējas sertifikāti</a>
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/about' else '' }" href="/about">Par Elektronia</a>
+                            <a t-attf-class="menu-link #{ 'active' if request.httprequest.path == '/contact' else '' }" href="/contact">Kontakti</a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+        </template>
+
+        <!-- FOOTER TEMPLATE -->
+        <template id="custom_footer" name="Custom Footer">
+            <footer class="site-footer">
+                <div class="footer-content">
+                    <p>© 2025 Elektronia. Visas tiesības aizsargātas</p>
+                    <p>
+                        <a href="#">Privātuma politika</a>
+                    </p>
+                </div>
+            </footer>
+        </template>
+
+        <!-- LAYOUT TEMPLATE COMPOSING HEADER + FOOTER -->
+        <template id="custom_page_layout" name="Custom Page Layout">
+            <t t-call="website.layout">
+                <t t-call="custom_website.custom_header"/>
+                <t t-set="0" t-value="0"/>
+                <!-- Placeholder for body, overridden by child templates -->
+                <t t-call="custom_website.custom_footer"/>
+            </t>
+        </template>
+    </data>
+</odoo>

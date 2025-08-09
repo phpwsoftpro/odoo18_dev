@@ -1,0 +1,87 @@
+<odoo>
+    <!-- Giao diện Quick Create của CRM Lead -->
+    <record id="crm_lead_quick_create_inherit_custom" model="ir.ui.view">
+        <field name="name">crm.lead.quick_create.inherit</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.quick_create_opportunity_form"/>
+        <field name="arch" type="xml">
+            <!-- Thêm field sau trường 'name' -->
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="project_type_id"/>
+                <field name="tech_stack_ids" widget="many2many_tags"/>
+            </xpath>
+
+            <!-- Ẩn field 'phone' -->
+            <xpath expr="//field[@name='phone']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_lead_form_inherit_custom" model="ir.ui.view">
+        <field name="name">crm.lead.form.inherit.project.type</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Chèn sau field phone -->
+        <xpath expr="//field[@name='phone']" position="attributes">
+            <attribute name="invisible">1</attribute>
+        </xpath>
+        <xpath expr="//group[field[@name='tag_ids']]" position="after">
+            <group col="1">
+                <field name="start_date" string="Expected Start Date"/>
+                <field name="end_date" string="Expected End Date"/>
+            </group>
+        </xpath>
+        <xpath expr="//group[field[@name='tag_ids']]" position="after">
+            <group >
+                <field name="project_type_id"/>
+                <field name="tech_stack_ids" widget="many2many_tags"/>
+            </group>
+        </xpath>
+
+        </field>
+    </record>
+    
+    <record id="crm_lead_kanban_view_inherit_duration" model="ir.ui.view">
+        <field name="name">crm.lead.kanban.inherit.project.duration</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.view_crm_lead_kanban"/>
+        <field name="arch" type="xml">
+
+            <!-- Bổ sung field để có dữ liệu -->
+            <xpath expr="//t[@t-name='card']" position="inside">
+                <field name="project_duration"/>
+            </xpath>
+
+            <!-- Chèn vào trong footer, sau priority -->
+            <xpath expr="//div[@class='d-flex mt-auto']" position="after">
+                <t t-if="record.project_duration.value">
+                    <div class="mt-1 text-muted small d-flex align-items-center">
+                        <i class="fa fa-clock-o me-1 text-secondary"/>
+                        <t t-esc="record.project_duration.value"/>
+                    </div>
+                </t>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Dữ liệu mặc định cho Project Type -->
+    <record id="project_type_web" model="project.type">
+        <field name="name">Web Development</field>
+    </record>
+
+    <record id="project_type_mobile" model="project.type">
+        <field name="name">Mobile App</field>
+    </record>
+
+    <record id="project_type_custom" model="project.type">
+        <field name="name">Custom Software</field>
+    </record>
+
+    <record id="project_type_consulting" model="project.type">
+        <field name="name">IT Consulting</field>
+    </record>
+
+</odoo>
