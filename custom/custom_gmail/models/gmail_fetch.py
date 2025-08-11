@@ -472,7 +472,7 @@ class GmailFetch(models.Model):
                     len(msgs_to_unlink),
                     account.email,
                 )
-                msgs_to_unlink.unlink()
+                msgs_to_unlink.sudo().unlink()
         except Exception as e:
             _logger.warning("⚠️ Không thể xóa mail cũ: %s", e)
         _logger.info("✅ Đồng bộ Gmail hoàn tất (%s messages)", fetched_count)
