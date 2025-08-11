@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="GmailAccount_view_list" model="ir.ui.view">
+            <field name="name">GmailAccount_view_list</field>
+            <field name="model">gmail.account</field>
+            <field name="arch" type="xml">
+                <list string="GmailAccount_list">
+                    <field name="user_id"/>
+                    <field name="email"/>
+                    <field name="access_token"/>
+                    <field name="refresh_token"/>
+                    <field name="token_expiry"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="gmail_account_action" model="ir.actions.act_window">
+            <field name="name">gmail.account</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">gmail.account</field>
+            <field name="view_mode">list</field>
+        </record>
+
+        <menuitem id="gmail_account_action_menu" name="Gmail Account" parent="menu_gmail_sync" action="gmail_account_action" sequence="21"/>
+
+
+    </data>
+</odoo>

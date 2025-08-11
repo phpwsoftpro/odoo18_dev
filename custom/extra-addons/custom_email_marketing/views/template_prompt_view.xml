@@ -1,0 +1,43 @@
+<odoo>
+    <!-- Tree View -->
+    <record id="view_template_prompt_list" model="ir.ui.view">
+        <field name="name">template.prompt.list</field>
+        <field name="model">template.prompt</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_template_prompt_form" model="ir.ui.view">
+        <field name="name">template.prompt.form</field>
+        <field name="model">template.prompt</field>
+        <field name="arch" type="xml">
+            <form string="AI Prompt Template">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="template_body"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_template_prompt" model="ir.actions.act_window">
+        <field name="name">Prompt Templates</field>
+        <field name="res_model">template.prompt</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_template_prompt"
+              name="Prompt Templates"
+              parent="crm.crm_menu_config"
+              action="action_template_prompt"
+              sequence="20"
+              groups="sales_team.group_sale_manager"/>
+
+</odoo>

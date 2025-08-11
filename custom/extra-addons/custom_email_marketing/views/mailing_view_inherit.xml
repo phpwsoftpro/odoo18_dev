@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_mailing_list_inherit" model="ir.ui.view">
+        <field name="name">mailing.mailing.list.inherit</field>
+        <field name="model">mailing.mailing</field>
+        <field name="inherit_id" ref="mass_mailing.view_mail_mass_mailing_tree"/>
+        <field name="arch" type="xml">
+            <field name="subject" position="after">
+                <field name="contact_list_ids" widget="many2many_tags" string="Contact List"/>
+            </field>
+        </field>
+    </record>
+    <record id="mass_mailing.action_view_mass_mailing_lists" model="ir.actions.act_window">
+        <field name="context">{'group_by': 'folder_id'}</field>
+    </record>
+    <record id="view_mailing_list_search_folder" model="ir.ui.view">
+        <field name="name">mailing.list.search.folder</field>
+        <field name="model">mailing.list</field>
+        <field name="inherit_id" ref="mass_mailing.mailing_list_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter string="Folder" name="group_by_folder" context="{'group_by': 'folder_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- views/mailing_mailing_views.xml -->
+    <!-- <record id="view_mailing_mailing_form_inherit_test_subject" model="ir.ui.view">
+        <field name="name">mailing.mailing.form.inherit.test.subject</field>
+        <field name="model">mailing.mailing</field>
+        <field name="inherit_id" ref="mass_mailing.view_mail_mass_mailing_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='subject']" position="after">
+                <field name="test_subject"/>
+            </xpath>
+
+        </field>
+    </record> -->
+</odoo>
