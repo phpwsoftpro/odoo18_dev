@@ -1,0 +1,26 @@
+<odoo>
+    <record id="view_move_task_wizard_form" model="ir.ui.view">
+        <field name="name">move.task.wizard.form</field>
+        <field name="model">move.task.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Move Task">
+                <group>
+                    <field name="task_id" readonly="1"/>
+                    <field name="new_project_id"/>
+                    <field name="new_stage_id"/>
+                </group>
+                <footer>
+                    <button name="move_task" type="object" string="Move" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_move_task_wizard" model="ir.actions.act_window">
+        <field name="name">Move Task</field>
+        <field name="res_model">move.task.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

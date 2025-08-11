@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="mail.messaging_menu_patch" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o-mail-MessagingMenu-header')]/button[last()]" position="after">
+            <button class="o-mail-MessagingMenu-headerFilter btn btn-link px-2 py-1 m-1 lh-1 text-muted" type="button" role="tab" data-tab="project">
+                Project
+            </button>
+        </xpath>
+    </t>
+</templates>
