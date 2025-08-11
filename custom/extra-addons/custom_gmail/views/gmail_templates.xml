@@ -1,0 +1,11 @@
+<odoo>
+  <template id="gmail_auth_error">
+    <t t-name="custom_gmail.gmail_auth_error">
+      <div class="oe_structure">
+        <h1>Gmail Auth Error</h1>
+        <p t-esc="error"/>
+        <p>Vui lòng thử lại hoặc liên hệ admin để được hỗ trợ.</p>
+      </div>
+    </t>
+  </template>
+</odoo>

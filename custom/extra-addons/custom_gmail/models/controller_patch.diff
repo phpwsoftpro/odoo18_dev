@@ -1,0 +1,91 @@
+*** PATCH: outlook_controller.py (merge endpoints + save to DB)
+@@
+-@http.route("/outlook/messages", type="json", auth="user", csrf=False)
+-def outlook_messages(self, **kw):
+-    # existing logic for inbox only
++@http.route("/outlook/messages", type="json", auth="user", csrf=False)
++def outlook_messages(self, folder="inbox", **kw):
++    """Unified endpoint: folder=inbox|sent|all.
++    - Fetch messages from Graph
++    - Save/Update to model outlook.message
++    - Return list with body_html for rendering
++    """
+     account = (
+         request.env["outlook.account"].sudo()
+         .search([("user_id", "=", request.env.user.id)], limit=1)
+     )
+     access_token = account.outlook_access_token if account else ""
+     if not access_token:
+         return {"status": "error", "message": "No Outlook access token found"}
+@@
+-    # existing: only one list_url for inbox
+-    list_url = "https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime desc&$top=20"
+-    r = requests.get(list_url, headers=headers)
++    # Build list URLs by folder
++    urls = []
++    if folder in (None, "", "inbox"):
++        urls.append("https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime desc&$top=20")
++    elif folder == "sent":
++        urls.append("https://graph.microsoft.com/v1.0/me/mailFolders('sentitems')/messages?$orderby=sentDateTime desc&$top=20")
++    elif folder == "all":
++        urls.append("https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime desc&$top=20")
++        urls.append("https://graph.microsoft.com/v1.0/me/mailFolders('sentitems')/messages?$orderby=sentDateTime desc&$top=20")
++    else:
++        return {"status": "error", "message": f"Unknown folder: {folder}"}
++
++    # Helper to get message detail
++    def _detail(mid):
++        u = f"https://graph.microsoft.com/v1.0/me/messages/{mid}"
++        return requests.get(u, headers=headers)
++
++    full = []
++    Message = request.env["outlook.message"].sudo()
++
++    for list_url in urls:
++        r = requests.get(list_url, headers=headers)
+         if r.status_code != 200:
+             return {"status": "error", "message": "Failed to fetch messages"}
+-    message_list = r.json().get("value", [])
+-    full_messages = []
+-    for msg in message_list:
+-        # existing: call detail and append minimal fields
+-        detail_url = f"https://graph.microsoft.com/v1.0/me/messages/{msg['id']}"
+-        detail_resp = requests.get(detail_url, headers=headers)
+-        if detail_resp.status_code == 200:
+-            detail = detail_resp.json()
+-            full_messages.append({
+-                "id": detail["id"],
+-                "subject": detail.get("subject", "No Subject"),
+-                "sender": detail.get("sender", {}).get("emailAddress", {}).get("name"),
+-                "from": detail.get("from", {}).get("emailAddress", {}).get("address"),
+-                "date": detail.get("receivedDateTime"),
+-                "body": detail.get("body", {}).get("content", ""),
+-                "bodyPreview": detail.get("bodyPreview", ""),
+-                "type": "outlook",
+-            })
+-    return {"status": "ok", "messages": full_messages}
++        message_list = r.json().get("value", [])
++        for msg in message_list:
++            dr = _detail(msg["id"])
++            if dr.status_code != 200:
++                continue
++            d = dr.json()
++            # Save/Update to DB
++            rec = Message.upsert_from_graph_detail(d, folder_hint="sent" if "sentitems" in list_url else "inbox", user_id=request.env.user.id)
++            # Build response item
++            is_sent = bool(d.get("sentDateTime"))
++            full.append({
++                "id": d["id"],
++                "subject": d.get("subject", "No Subject"),
++                "sender": d.get("sender", {}).get("emailAddress", {}).get("name"),
++                "from": d.get("from", {}).get("emailAddress", {}).get("address"),
++                "date": d.get("sentDateTime") if is_sent else d.get("receivedDateTime"),
++                "folder": "sent" if is_sent or "sentitems" in list_url else "inbox",
++                "body_html": (d.get("body") or {}).get("content") or "",
++                "content_type": (d.get("body") or {}).get("contentType") or "html",
++                "type": "outlook",
++            })
++
++    # Sort newest first
++    full.sort(key=lambda m: m.get("date") or "", reverse=True)
++    return {"status": "ok", "messages": full}
