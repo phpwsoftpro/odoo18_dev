@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 class GmailAccount(models.Model):
     _name = "gmail.account"
     _description = "Gmail Account"
-
+    avatar_url = fields.Char("Avatar URL")
     user_id = fields.Many2one("res.users", string="User", required=True)
     gmail_authenticated_email = fields.Char(string="Authenticated Email")
     email = fields.Char(string="Email", required=True)

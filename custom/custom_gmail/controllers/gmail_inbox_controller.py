@@ -159,6 +159,8 @@ class GmailInboxController(http.Controller):
                     "message_id": msg.message_id or "",
                     "is_read": msg.is_read,
                     "is_starred_mail": msg.is_starred_mail,
+                    "avatar_url": msg.avatar_url or "",
+
                 }
             )
 

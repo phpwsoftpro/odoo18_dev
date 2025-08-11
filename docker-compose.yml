@@ -1,0 +1,32 @@
+services:
+  odoo:
+    build: .               # dùng Dockerfile để cài msal
+    image: odoo18-msal     # image local
+    container_name: odoo18
+    depends_on:
+      - db
+    ports:
+      - '8070:8069'
+    environment:
+      - DB_HOST=db
+      - DB_USER=odoo
+      - DB_PASSWORD=odoo
+      - DB_NAME=odoodb18
+    volumes:
+      - odoo-data:/var/lib/odoo
+      - ./custom/config:/etc/odoo
+      - ./custom/extra-addons:/mnt/extra-addons 
+
+  db:
+    image: postgres:15
+    container_name: odoo18-db
+    environment:
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_DB=odoodb18
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  odoo-data:
+  db-data:
