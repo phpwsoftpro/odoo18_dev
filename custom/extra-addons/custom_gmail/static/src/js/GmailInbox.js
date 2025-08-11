@@ -843,24 +843,21 @@ export class GmailInbox extends Component {
 
     async loadAuthenticatedEmail() {
         try {
-
             const accountId = this.state.activeTabId;
             const account = this.state.accounts.find(acc => acc.id === accountId);
             if (!account || account.type !== 'gmail') {
-                return; // 👈 Bỏ qua nếu không phải Gmail
+            return; // Không phải Gmail thì bỏ qua
             }
 
-            const result = await rpc("/gmail/user_email", {
-                account_id: accountId
-            });
+            const result = await rpc("/gmail/user_email", { account_id: accountId });
             this.state.gmail_email = result.gmail_email || "No Email";
-
             console.log("✅ Gmail email loaded:", this.state.gmail_email);
         } catch (error) {
             console.error("❌ Lỗi khi gọi /gmail/user_email:", error);
             this.state.gmail_email = "Error loading Gmail";
         }
     }
+
 
 
     async loadOutlookAuthenticatedEmail() {
