@@ -1402,3 +1402,104 @@ class MailAPIController(http.Controller):
             )
 
         return {"status": "ok", "messages": result}
+
+    @http.route("/gmail/advanced_search", type="json", auth="user", csrf=False)
+    def advanced_search(self, **kwargs):
+        account_id = kwargs.get("account_id")
+        page = int(kwargs.get("page", 1))
+        limit = int(kwargs.get("limit", 15))
+        offset = (page - 1) * limit
+
+        domain = [("message_type", "=", "email"), ("is_gmail", "=", True)]
+        if account_id:
+            domain.append(("gmail_account_id", "=", int(account_id)))
+        # Lọc nâng cao
+        if kwargs.get("from"):
+            domain.append(("email_sender", "ilike", kwargs["from"]))
+        if kwargs.get("to"):
+            domain.append(("email_receiver", "ilike", kwargs["to"]))
+        if kwargs.get("subject"):
+            domain.append(("subject", "ilike", kwargs["subject"]))
+        if kwargs.get("hasWords"):
+            domain.append(("body", "ilike", kwargs["hasWords"]))
+        if kwargs.get("doesntHave"):
+            domain.append(("body", "not ilike", kwargs["doesntHave"]))
+        if kwargs.get("hasAttachment"):
+            domain.append(("attachment_ids", "!=", False))
+        if kwargs.get("searchIn") and kwargs["searchIn"] != "all":
+            if kwargs["searchIn"] == "inbox":
+                domain.append(("is_sent_mail", "=", False))
+            elif kwargs["searchIn"] == "sent":
+                domain.append(("is_sent_mail", "=", True))
+            elif kwargs["searchIn"] == "drafts":
+                domain.append(("is_draft_mail", "=", True))
+            elif kwargs["searchIn"] == "spam":
+                domain.append(("is_spam", "=", True))
+        if kwargs.get("dateValue"):
+            domain.append(("date_received", "<=", kwargs["dateValue"] + " 23:59:59"))
+        if kwargs.get("dateWithin"):
+            # Tính toán ngày bắt đầu
+            from datetime import datetime, timedelta
+
+            now = fields.Datetime.now()
+            if kwargs["dateWithin"] == "1 day":
+                start = now - timedelta(days=1)
+            elif kwargs["dateWithin"] == "1 week":
+                start = now - timedelta(weeks=1)
+            elif kwargs["dateWithin"] == "1 month":
+                start = now - timedelta(days=30)
+            else:
+                start = None
+            if start:
+                domain.append(("date_received", ">=", fields.Datetime.to_string(start)))
+
+        total = request.env["mail.message"].sudo().search_count(domain)
+        messages = (
+            request.env["mail.message"]
+            .sudo()
+            .search(domain, order="date_received desc", limit=limit, offset=offset)
+        )
+
+        result = []
+        for msg in messages:
+            attachments = (
+                request.env["ir.attachment"]
+                .sudo()
+                .search([("res_model", "=", "mail.message"), ("res_id", "=", msg.id)])
+            )
+            attachment_list = [
+                {
+                    "id": att.id,
+                    "name": att.name,
+                    "url": f"/web/content/{att.id}",
+                    "download_url": f"/web/content/{att.id}?download=true",
+                    "mimetype": att.mimetype,
+                }
+                for att in attachments
+            ]
+
+            result.append(
+                {
+                    "id": msg.id,
+                    "subject": msg.subject or "No Subject",
+                    "sender": msg.email_sender or "Unknown Sender",
+                    "to": msg.email_receiver or "",
+                    "receiver": msg.email_receiver or "",
+                    "date_received": (
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
+                    ),
+                    "body": msg.body,
+                    "attachments": attachment_list,
+                    "thread_id": msg.thread_id or "",
+                    "message_id": msg.message_id or "",
+                    "is_read": msg.is_read,
+                    "is_starred_mail": msg.is_starred_mail,
+                }
+            )
+
+        return {
+            "messages": result,
+            "total": total,
+        }
