@@ -1362,6 +1362,7 @@ class MailAPIController(http.Controller):
                     "sender": msg.email_sender or "Unknown Sender",
                     "to": msg.email_receiver or "",
                     "receiver": msg.email_receiver or "",
+                    "cc": msg.email_cc or "",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
                     ),
