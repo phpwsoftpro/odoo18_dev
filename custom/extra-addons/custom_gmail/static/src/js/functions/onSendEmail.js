@@ -1,16 +1,16 @@
 /** @odoo-module **/
 
-let attachedFiles = [];
-
 export function onSendEmail() {
     const composeData = this.state.composeData || {};
     const thread_id = composeData.thread_id || null;
     const message_id = composeData.message_id || null;
 
     const to = document.querySelector('.compose-input.to')?.value || '';
+    const cc = document.querySelector('.compose-input.cc')?.value || '';
+    const bcc = document.querySelector('.compose-input.bcc')?.value || '';
     const subject = document.querySelector('.compose-input.subject')?.value || '';
-    let body = window.editorInstance ? window.editorInstance.getData() : '';
 
+    let body = window.editorInstance ? window.editorInstance.getData() : '';
     body = body.replace(/<table/g, '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;"');
     const splitIndex = body.indexOf('<div class="reply-quote">');
     const cleanBody = splitIndex !== -1 ? body.slice(0, splitIndex) : body;
@@ -21,18 +21,15 @@ export function onSendEmail() {
     }
 
     const account_id = this.state.activeTabId;
-    if (!account_id) {
+    const account = this.state.accounts.find(a => String(a.id) === String(account_id));
+    if (!account) {
         alert("Không xác định được tài khoản gửi.");
         return;
     }
 
-    const trimmedSubject = subject.trim();
-    const trimmedBody = cleanBody.trim();
-    const hasBody = !!trimmedBody;
     const hasAttachment = this.state.attachments && this.state.attachments.length > 0;
-
-    const finalSubject = trimmedSubject || (hasBody || hasAttachment ? "No Subject" : "");
-    const finalBody = hasBody ? trimmedBody : (hasAttachment ? "" : null);
+    const finalSubject = subject.trim() || (cleanBody.trim() || hasAttachment ? "No Subject" : "");
+    const finalBody = (cleanBody.trim() || hasAttachment) ? cleanBody.trim() : "";
 
     if (!finalSubject && !finalBody && !hasAttachment) {
         alert("Vui lòng nhập nội dung email hoặc đính kèm tệp.");
@@ -41,26 +38,31 @@ export function onSendEmail() {
 
     const formData = new FormData();
     formData.append("to", to);
+    if (cc.trim()) formData.append("cc", cc);
+    if (bcc.trim()) formData.append("bcc", bcc);
     formData.append("subject", finalSubject);
-    formData.append("body_html", finalBody ?? "");
+    formData.append("body_html", finalBody);
+    formData.append("account_id", account_id);
+    formData.append("account_type", account.type); // 👈 cho backend biết là gmail hay outlook
     if (thread_id) formData.append("thread_id", thread_id);
     if (message_id) formData.append("message_id", message_id);
-    formData.append("account_id", account_id);
 
-    // ✅ Thêm file đính kèm
-    this.state.attachments.forEach((f) => {
+    // attachments
+    (this.state.attachments || []).forEach((f) => {
         formData.append('attachments[]', f.fileObj, f.name);
     });
 
     console.log("🚀 FormData:", [...formData.entries()]);
 
-    fetch('/api/send_email', {
-        method: 'POST',
-        body: formData,
-    })
-        .then(response => response.json())
+    // 👇 Chọn endpoint theo loại tài khoản
+    const endpoint = account.type === 'gmail'
+        ? '/api/send_email'
+        : '/outlook/send_email';
+
+    fetch(endpoint, { method: 'POST', body: formData })
+        .then(r => r.json())
         .then(data => {
-            if (data.status === 'success') {
+            if (data.status === 'success' || data.status === 'ok') {
                 alert("✅ Email đã được gửi thành công!");
                 this.state.showComposeModal = false;
                 this.state.attachments = [];
