@@ -142,3 +142,19 @@
 .ck-content{
   height: 250px;
 }
+
+/* 🔧 FIX: Đảm bảo ảnh trong editor giữ tỷ lệ gốc */
+.ck-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+/* 🔧 FIX: Đặc biệt cho ảnh trong forward message */
+.compose-modal img[src^="data:image"] {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  width: auto !important;
+}
