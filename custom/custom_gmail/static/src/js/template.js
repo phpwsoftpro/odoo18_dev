@@ -14,10 +14,77 @@ export default xml`
         </div>
         <div class="gmail-search">
             <input type="text" placeholder="Search mail" />
-            <button>
-                <i class="fa fa-search"></i>
+            <button class="search-advanced-btn gmail-advanced-icon" t-on-click="toggleSearchPopup">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <g stroke="#444" stroke-width="2" stroke-linecap="round">
+                <line x1="7" y1="7" x2="17" y2="7"/>
+                <circle cx="10" cy="7" r="2" fill="#fff"/>
+                <line x1="7" y1="12" x2="17" y2="12"/>
+                <circle cx="14" cy="12" r="2" fill="#fff"/>
+                <line x1="7" y1="17" x2="17" y2="17"/>
+                <circle cx="12" cy="17" r="2" fill="#fff"/>
+                </g>
+            </svg>
             </button>
+            <div t-if="state.showSearchPopup" class="advanced-search-popup">
+                <div class="popup-body">
+                    <div class="form-row">
+                        <label>From:</label>
+                        <input type="text" t-model="state.searchQuery.from" />
+                    </div>
+                    <div class="form-row">
+                        <label>To:</label>
+                        <input type="text" t-model="state.searchQuery.to" />
+                    </div>
+                    <div class="form-row">
+                        <label>Subject:</label>
+                        <input type="text" t-model="state.searchQuery.subject" />
+                    </div>
+                    <div class="form-row">
+                        <label>Has the words:</label>
+                        <input type="text" t-model="state.searchQuery.hasWords" />
+                    </div>
+                    <div class="form-row">
+                        <label>Doesn't have:</label>
+                        <input type="text" t-model="state.searchQuery.doesntHave" />
+                    </div>
+                    <div class="form-row">
+                        <label>Date within:</label>
+                        <select t-model="state.searchQuery.dateWithin" style="max-width:110px;">
+                            <option value="1 day">1 day</option>
+                            <option value="1 week">1 week</option>
+                            <option value="1 month">1 month</option>
+                        </select>
+                        <input type="date"
+                            t-model="state.searchQuery.dateValue"
+                            t-att-max="(new Date()).toISOString().slice(0,10)"
+                            style="max-width:150px; margin-left:8px;" />
+                    </div>
+                    <div class="form-row">
+                        <label>Search:</label>
+                        <select t-model="state.searchQuery.searchIn">
+                            <option value="all">All Mail</option>
+                            <option value="inbox">Inbox</option>
+                            <option value="sent">Sent</option>
+                            <option value="drafts">Drafts</option>
+                            <option value="spam">Spam</option>
+                        </select>
+                    </div>
+                    <div class="form-row" style="margin-top:8px;">
+                        <label></label>
+                        <input type="checkbox" t-model="state.searchQuery.hasAttachment" style="width:auto; margin-right:6px;"/>
+                        <span style="margin-right:18px;">Has attachment</span>
+                        <input type="checkbox" t-model="state.searchQuery.excludeChats" style="width:auto; margin-right:6px;"/>
+                        <span>Don't include chats</span>
+                    </div>
+                </div>
+                <div class="popup-footer">
+                    <button class="search-btn" t-on-click="onSearchAdvanced">Search</button>
+                </div>
+            </div>
         </div>
+
+        
         <div class="gmail-inbox-container">
             <div class="gmail-profile" t-on-click="() => this.toggleDropdownAccount()">
                 <span class="user-icon">
@@ -452,7 +519,7 @@ export default xml`
 
                                         <div class="message-content">
                                             
-                                            <t t-raw="threadMsg.body"/>
+                                            <t t-raw="threadMsg.body || threadMsg.body_html"/>
                                         </div>
 
                                     </div>

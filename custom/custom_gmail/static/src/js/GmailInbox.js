@@ -161,9 +161,105 @@ export class GmailInbox extends Component {
             this.state.showCategoryLabels = !this.state.showCategoryLabels;
             this.render();
         }
+        this.onSearch = () => {
+            const { from, to, subject, hasWords, dateWithin } = this.state.searchQuery;
+            this.loadMessagesWithSearch(from, to, subject, hasWords, dateWithin);  // Call your search logic
+        };
 
+        this.state.showAdvancedSearch = false;  // Add this state for controlling the popup
 
+        // Add this method to toggle the visibility of the advanced search form
+        this.toggleAdvancedSearch = () => {
+            this.state.showAdvancedSearch = !this.state.showAdvancedSearch;
+            this.render();  // Re-render to reflect the state change
+        };
 
+        // Example search query state
+        this.state.searchQuery = {
+            from: '',
+            to: '',
+            subject: '',
+            hasWords: '',
+            doesntHave: '',
+            sizeOperator: 'greater',
+            sizeValue: '',
+            sizeUnit: 'MB',          
+            dateWithin: '1 day',
+            dateValue: '',
+            searchIn: 'all',
+            hasAttachment: false,
+            excludeChats: false,
+        };
+        this.toggleSearchPopup = () => {
+            this.state.showSearchPopup = !this.state.showSearchPopup;
+            this.render();
+        };
+        this.state.showSearchPopup = false;
+        
+        this.onSearchAdvanced = () => {
+            const query = { ...this.state.searchQuery };
+
+            // Ví dụ kiểm tra hợp lệ: Nếu có sizeValue thì phải là số dương
+            if (query.sizeValue && (!/^\d+$/.test(query.sizeValue) || Number(query.sizeValue) <= 0)) {
+                alert("Size must be a positive number!");
+                return;
+            }
+
+            // Thực hiện tìm kiếm (gọi API hoặc filter local)
+            // Ví dụ: gọi hàm loadMessages với query nâng cao
+            this.loadMessagesWithAdvancedSearch(query);
+
+            // Đóng popup sau khi search
+            this.state.showSearchPopup = false;
+        };
+
+        this.loadMessagesWithAdvancedSearch = async (query) => {
+            const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
+            if (!acc) return;
+
+            // Chuẩn hóa dữ liệu gửi lên backend
+            const params = {
+                account_id: parseInt(acc.id),
+                from: query.from,
+                to: query.to,
+                subject: query.subject,
+                hasWords: query.hasWords,
+                doesntHave: query.doesntHave,
+                sizeOperator: query.sizeOperator,
+                sizeValue: query.sizeValue,
+                sizeUnit: query.sizeUnit,
+                dateWithin: query.dateWithin,
+                dateValue: query.dateValue,
+                searchIn: query.searchIn,
+                hasAttachment: query.hasAttachment,
+                excludeChats: query.excludeChats,
+                page: 1,
+                limit: this.state.pagination.pageSize,
+            };
+
+            // Gọi API search nâng cao (bạn cần tạo route /gmail/advanced_search ở backend)
+            const res = await rpc("/gmail/advanced_search", params);
+
+            // Xử lý kết quả trả về
+            if (res && res.messages) {
+                // Xử lý giống các hàm loadGmailMessages...
+                for (const msg of res.messages) {
+                    msg.body_cleaned = msg.body;
+                    msg.body = markup(msg.body);
+                    msg.sender = msg.sender || msg.email_sender || "Unknown Sender";
+                    msg.email_receiver = msg.email_receiver || '';
+                    msg.email_cc = msg.email_cc || '';
+                }
+                this.state.messagesByEmail[acc.email] = res.messages;
+                this.state.messages = res.messages;
+                this.state.pagination.currentPage = 1;
+                this.state.pagination.total = res.total;
+                this.state.pagination.totalPages = Math.ceil(res.total / this.state.pagination.pageSize);
+            } else {
+                this.state.messages = [];
+            }
+            this.render();
+        };
 
 
         this._onClickOutsideVertical = (event) => {
