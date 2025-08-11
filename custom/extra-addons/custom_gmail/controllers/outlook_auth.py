@@ -20,6 +20,7 @@ class OutlookAuthController(http.Controller):
         scope = (
             "https://graph.microsoft.com/Mail.ReadWrite "
             "https://graph.microsoft.com/Mail.Read "
+            "https://graph.microsoft.com/Mail.Send "
             "https://graph.microsoft.com/User.Read offline_access"
         )
 
