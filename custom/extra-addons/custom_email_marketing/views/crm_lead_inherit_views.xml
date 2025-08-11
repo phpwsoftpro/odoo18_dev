@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="crm_lead_view_form_inherit_new_notebook" model="ir.ui.view">
+            <field name="name">crm.lead.form.inherit.new.notebook</field>
+            <field name="model">crm.lead</field>
+            <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page string="Body Analyze" name="body_analyze_page">
+                        <group>
+                            <field name="body_analyze"/>
+                        </group>
+                    </page>
+                    <page string="Reply Email" name="reply_email_page">
+                        <group>
+                            <field name="reply_email" placeholder="Draft your AI-generated email reply here..."/>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_crm_lead_form_reply_email" model="ir.ui.view">
+            <field name="name">crm.lead.form.inherit.reply.email</field>
+            <field name="model">crm.lead</field>
+            <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+            <field name="arch" type="xml">
+                <header position="inside">
+                    <button name="action_reply_email2" type="object" string="Reply Email" class="btn-secondary" icon="fa-reply"/>
+                </header>
+                <xpath expr="//label[@for='email_from']" position="before">
+                    <field name="message_id"/>
+                    <field name="template_ai"/>
+
+                </xpath>
+            </field>
+        </record>
+        <record id="view_task_form_with_chatter_filter_crm" model="ir.ui.view">
+            <field name="name">crm.lead.form.chatter.filter</field>
+            <field name="model">crm.lead</field>
+            <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+            <field name="arch" type="xml">
+                <!-- Thêm bộ lọc dạng dropdown vào trước div chatter -->
+                <xpath expr="//chatter" position="before">
+                    <div class="o_communication_filter_dropdown">
+                        <select id="chatter_filter_select" class="form-select">
+                            <option value="all">All</option>
+                            <option value="note_email">Note Email</option>
+                            <option value="message">Email</option>
+                            <option value="note">Comment</option>
+                            <option value="activity">Activities</option>
+                        </select>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+
+
+<!--        <record id="crm_lead_kanban_inherit_body_analyze" model="ir.ui.view">-->
+<!--            <field name="name">crm.lead.kanban.inherit.body.analyze</field>-->
+<!--            <field name="model">crm.lead</field>-->
+<!--            <field name="inherit_id" ref="crm.crm_case_kanban_view_leads"/>-->
+<!--            <field name="arch" type="xml">-->
+<!--                <xpath expr="//templates/t[@t-name='card']" position="inside">-->
+<!--                    <div class="o_kanban_bottom">-->
+<!--                        <field name="body_analyze" widget="text" class="text-muted small"/>-->
+<!--                    </div>-->
+<!--                </xpath>-->
+<!--            </field>-->
+<!--        </record>-->
+
+    </data>
+</odoo>

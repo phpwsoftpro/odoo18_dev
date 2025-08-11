@@ -1,0 +1,7 @@
+<templates xml:space="preserve">
+    <t t-inherit="mail.NotificationItem" t-inherit-mode="extension">
+        <xpath expr="//button[contains(@class, 'o-mail-NotificationItem')]" position="attributes">
+            <attribute name="t-att-data-model" t-value="props.notification.record and props.notification.record.data and props.notification.record.data.model or ''"/>
+        </xpath>
+    </t>
+</templates>
