@@ -696,7 +696,7 @@ class MailAPIController(http.Controller):
         for fs in files:
             content = fs.read()
             fs.seek(0)
-            fname = fs.filename
+            fname = fs.filename or "file"
 
             # inline ?
             if fname in inline_map:
@@ -710,16 +710,20 @@ class MailAPIController(http.Controller):
                     part.set_payload(content)
                     encoders.encode_base64(part)
                 part.add_header("Content-ID", f"<{im['cid']}>")
-                # filename* utf-8
-                part.add_header("Content-Disposition", "inline", **{"filename*": f"utf-8''{encode_rfc2231(fname, 'utf-8')}"})
+                part.add_header("Content-Disposition", "inline",
+                                **{"filename*": encode_rfc2231(fname, "utf-8")})
                 inlines.append(part)
             else:
-                part = MIMEBase("application", "octet-stream")
+                # ✅ đoán đúng Content-Type cho mọi tệp
+                ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+                maintype, subtype = (ctype.split("/", 1) + ["octet-stream"])[:2]
+                part = MIMEBase(maintype, subtype)
                 part.set_payload(content)
                 encoders.encode_base64(part)
-                encoded_filename = encode_rfc2231(fname, "utf-8")
-                part.add_header("Content-Disposition", f"attachment; filename*={encoded_filename}")
+                part.add_header("Content-Disposition", "attachment",
+                                **{"filename*": encode_rfc2231(fname, "utf-8")})
                 attachments.append(part)
+
 
         # ---- Outlook ----
         if provider == "outlook":
