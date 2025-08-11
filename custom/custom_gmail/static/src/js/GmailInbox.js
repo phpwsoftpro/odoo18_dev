@@ -195,20 +195,18 @@ export class GmailInbox extends Component {
         };
         this.state.showSearchPopup = false;
         
-        this.onSearchAdvanced = () => {
+        this.onSearchAdvanced = async () => {
             const query = { ...this.state.searchQuery };
 
-            // Ví dụ kiểm tra hợp lệ: Nếu có sizeValue thì phải là số dương
+            // Kiểm tra hợp lệ sizeValue
             if (query.sizeValue && (!/^\d+$/.test(query.sizeValue) || Number(query.sizeValue) <= 0)) {
                 alert("Size must be a positive number!");
                 return;
             }
 
-            // Thực hiện tìm kiếm (gọi API hoặc filter local)
-            // Ví dụ: gọi hàm loadMessages với query nâng cao
-            this.loadMessagesWithAdvancedSearch(query);
-
-            // Đóng popup sau khi search
+            this.state.isLoading = true;
+            await this.loadMessagesWithAdvancedSearch(query);
+            this.state.isLoading = false;
             this.state.showSearchPopup = false;
         };
 
@@ -216,7 +214,6 @@ export class GmailInbox extends Component {
             const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
             if (!acc) return;
 
-            // Chuẩn hóa dữ liệu gửi lên backend
             const params = {
                 account_id: parseInt(acc.id),
                 from: query.from,
@@ -236,12 +233,9 @@ export class GmailInbox extends Component {
                 limit: this.state.pagination.pageSize,
             };
 
-            // Gọi API search nâng cao (bạn cần tạo route /gmail/advanced_search ở backend)
             const res = await rpc("/gmail/advanced_search", params);
 
-            // Xử lý kết quả trả về
             if (res && res.messages) {
-                // Xử lý giống các hàm loadGmailMessages...
                 for (const msg of res.messages) {
                     msg.body_cleaned = msg.body;
                     msg.body = markup(msg.body);
@@ -259,8 +253,6 @@ export class GmailInbox extends Component {
             }
             this.render();
         };
-
-
         this._onClickOutsideVertical = (event) => {
             const dropdown = document.querySelector(".dropdown-menu-vertical");
             const button = document.querySelector(".icon-btn-option");
@@ -283,7 +275,6 @@ export class GmailInbox extends Component {
                 this.loadMessages(this.state.accounts[0].email);
             }
         }
-
         // 🔁 Mount chính: Load account
         onMounted(async () => {
             const currentUserId = await getCurrentUserId();
