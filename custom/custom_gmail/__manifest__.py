@@ -12,6 +12,7 @@
         "crm",
         "hr",
     ],
+    "external_dependencies": {"python": ["beautifulsoup4", "lxml", "requests"]},
     "qweb": [
         "static/src/xml/mail_thread.xml",
     ],

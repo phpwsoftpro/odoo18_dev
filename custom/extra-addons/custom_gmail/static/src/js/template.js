@@ -13,8 +13,20 @@ export default xml`
             <span class="gmail-logo-text">Gmail</span>
         </div>
         <div class="gmail-search">
-            <input type="text" placeholder="Search mail" />
+            <input type="text" placeholder="Search mail"
+                t-model="state.searchBarValue"
+                readonly="true"
+                style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 40px;"
+                t-on-click="toggleSearchPopup"
+            />
+            <t t-if="state.searchBarValue">
+                <button class="clear-search-btn" t-on-click="clearSearchFilter"
+                    style="position:absolute;right:30px;top:5px;background:none;border:none;cursor:pointer;">
+                    <i class="fa fa-times"></i>
+                </button>
+            </t>
             <button class="search-advanced-btn gmail-advanced-icon" t-on-click="toggleSearchPopup">
+
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <g stroke="#444" stroke-width="2" stroke-linecap="round">
                 <line x1="7" y1="7" x2="17" y2="7"/>
