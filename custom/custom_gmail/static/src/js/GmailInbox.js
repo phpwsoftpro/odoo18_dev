@@ -716,16 +716,30 @@ export class GmailInbox extends Component {
 
     async loadOutlookMessages(email) {
         const res = await rpc("/outlook/messages");
-        // console.log("📬 Outlook messages res:", res);
         if (res.status === "ok") {
-            const messages = res.messages.map((msg) => ({ ...msg, type: "outlook" }));
+            const messages = res.messages.map((msg) => {
+                // body_html từ backend
+                const html = msg.body_html || msg.body || "";
+                // preview nhanh (tùy):
+                const tmp = document.createElement("div");
+                tmp.innerHTML = html;
+                const preview = (tmp.textContent || "").trim().slice(0, 200);
+
+                return {
+                    ...msg,
+                    type: "outlook",
+                    body_cleaned: html,               // nếu cần lưu bản gốc
+                    body: markup(html),               // để t-raw hiển thị HTML
+                    preview,                          // hiển thị dòng preview
+                };
+            });
             this.state.messagesByEmail[email] = messages;
             this.state.messages = messages;
         } else {
-            console.warn("⚠️ Outlook fetch failed:", res.message);
             this.state.messages = [];
         }
     }
+
 
     async loadOutlookSentMessages(email) {
         const res = await rpc("/outlook/sent_messages");
@@ -830,24 +844,21 @@ export class GmailInbox extends Component {
 
     async loadAuthenticatedEmail() {
         try {
-
             const accountId = this.state.activeTabId;
             const account = this.state.accounts.find(acc => acc.id === accountId);
             if (!account || account.type !== 'gmail') {
-                return; // 👈 Bỏ qua nếu không phải Gmail
+            return; // Không phải Gmail thì bỏ qua
             }
 
-            const result = await rpc("/gmail/user_email", {
-                account_id: accountId
-            });
+            const result = await rpc("/gmail/user_email", { account_id: accountId });
             this.state.gmail_email = result.gmail_email || "No Email";
-
             console.log("✅ Gmail email loaded:", this.state.gmail_email);
         } catch (error) {
             console.error("❌ Lỗi khi gọi /gmail/user_email:", error);
             this.state.gmail_email = "Error loading Gmail";
         }
     }
+
 
 
     async loadOutlookAuthenticatedEmail() {

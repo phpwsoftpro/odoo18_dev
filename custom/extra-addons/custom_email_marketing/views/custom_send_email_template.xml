@@ -1,0 +1,14 @@
+<odoo>
+    <data>
+        <record id="email_composer_form_with_from" model="ir.ui.view">
+            <field name="name">mail.compose.message.form.with.from</field>
+            <field name="model">mail.compose.message</field>
+            <field name="inherit_id" ref="mail.email_compose_message_wizard_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group" position="inside">
+                    <field name="email_from" readonly="0" force_save="1"/>
+                </xpath>
+            </field>
+    </record>
+    </data>
+</odoo>

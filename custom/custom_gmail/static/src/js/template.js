@@ -434,7 +434,7 @@ export default xml`
                                         <div class="thread-message" t-att-class="{'current-message': threadMsg.id === state.selectedMessage.id, 'collapsed': threadMsg.collapsed}">
                                             <div class="message-header">
                                                 <div class="sender-info">
-                                                    <img class="sender-avatar" t-att-src="threadMsg.avatar || '/path/to/default-avatar.png' || ''" alt="avatar" />
+                                                    <img t-att-src="threadMsg.avatar_url || '/path/to/default-avatar.png' || ''" alt="avatar" class="sender-avatar" />
                                                     <div class="sender-details">
                                                         <div class="sender-line">
                                                             <strong class="sender-name">
@@ -519,7 +519,7 @@ export default xml`
 
                                         <div class="message-content">
                                             
-                                            <t t-raw="threadMsg.body || threadMsg.body_html"/>
+                                            <t t-raw="threadMsg.body"/>
                                         </div>
 
                                     </div>

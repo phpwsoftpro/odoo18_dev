@@ -1,0 +1,10 @@
+<record id="view_mailing_contact_kanban_inherit" model="ir.ui.view">
+    <field name="name">mailing.contact.kanban.inherit</field>
+    <field name="model">mailing.contact</field>
+    <field name="inherit_id" ref="mass_mailing.view_mailing_contact_kanban"/>
+    <field name="arch" type="xml">
+        <xpath expr="//kanban" position="attributes">
+            <attribute name="create_date">1</attribute>
+        </xpath>
+    </field>
+</record>
