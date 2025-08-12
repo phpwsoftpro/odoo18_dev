@@ -1494,6 +1494,7 @@ class MailAPIController(http.Controller):
                         "body", {}
                     ).get("data"):
                         import base64
+
                         return base64.urlsafe_b64decode(
                             payload["body"]["data"] + "=="
                         ).decode("utf-8", errors="ignore")
@@ -1527,5 +1528,4 @@ class MailAPIController(http.Controller):
                 _logger.info(f"🔎 [GMAIL SEARCH] No more pages after page {page_num}")
                 break
             page_num += 1
-
         return {"messages": messages, "total": total}
