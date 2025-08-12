@@ -148,7 +148,7 @@ export class GmailInbox extends Component {
         this.state.popupMessage = null;
         this.onAnalyze = onAnalyze.bind(this);
         this.state.messagesByEmail = {};
-        //  logic gốc để các nút "Gắn sao", "Đã gửi", "Thư nháp" hoạt động đúng
+        this.state.searchBarValue = "";
         this.switchFolder = this._switchFolder.bind(this);
 
         // Logic toggle sidebar "Hiện thêm"
@@ -189,6 +189,32 @@ export class GmailInbox extends Component {
             hasAttachment: false,
             excludeChats: false,
         };
+        this.onSearchAdvanced = async () => {
+            const query = { ...this.state.searchQuery };
+            let queryStr = "";
+            if (query.from) queryStr += `from:(${query.from}) `;
+            if (query.to) queryStr += `to:(${query.to}) `;
+            if (query.subject) queryStr += `subject:(${query.subject}) `;
+            if (query.hasWords) queryStr += `${query.hasWords} `;
+            if (query.doesntHave) queryStr += `-${query.doesntHave} `;
+            if (query.dateValue) queryStr += `before:${query.dateValue.replace(/-/g, "/")} `;
+            if (query.dateWithin && query.dateWithin !== "1 day") {
+                if (query.dateWithin === "1 week") queryStr += "newer_than:7d ";
+                if (query.dateWithin === "1 month") queryStr += "newer_than:30d ";
+            }
+            if (query.searchIn && query.searchIn !== "all") queryStr += `in:${query.searchIn} `;
+            if (query.hasAttachment) queryStr += "has:attachment ";
+            // ...bổ sung các filter khác nếu muốn...
+
+            this.state.searchBarValue = queryStr.trim();
+
+            this.state.isLoading = true;
+            await this.loadMessagesWithAdvancedSearch(query);
+            this.state.isLoading = false;
+            this.state.showSearchPopup = false;
+            this.render();
+        };
+
         this.toggleSearchPopup = () => {
             this.state.showSearchPopup = !this.state.showSearchPopup;
             this.render();
@@ -258,6 +284,26 @@ export class GmailInbox extends Component {
             } else {
                 this.state.messages = [];
             }
+            this.render();
+        };
+        this.clearSearchFilter = () => {
+        this.state.searchQuery = {
+            from: '',
+            to: '',
+            subject: '',
+            hasWords: '',
+            doesntHave: '',
+            sizeOperator: 'greater',
+            sizeValue: '',
+            sizeUnit: 'MB',
+            dateWithin: '1 day',
+            dateValue: '',
+            searchIn: 'all',
+            hasAttachment: false,
+            excludeChats: false,
+        };
+            this.state.searchBarValue = "";
+            this.state.messages = [];
             this.render();
         };
         this._onClickOutsideVertical = (event) => {
