@@ -16,12 +16,12 @@ export default xml`
             <input type="text" placeholder="Search mail"
                 t-model="state.searchBarValue"
                 readonly="true"
-                style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 40px;"
                 t-on-click="toggleSearchPopup"
             />
             <t t-if="state.searchBarValue">
                 <button class="clear-search-btn" t-on-click="clearSearchFilter"
-                    style="position:absolute;right:60px;top:8px;background:none;border:none;cursor:pointer;">
+                    style="position:absolute;right:30px;top:5px;background:none;border:none;cursor:pointer;">
                     <i class="fa fa-times"></i>
                 </button>
             </t>
