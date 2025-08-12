@@ -509,7 +509,7 @@ export default xml`
                                                             <li class="dropdown-item" t-on-click="() => window.print()">
                                                                 <i class="fa fa-print" style="margin-right: 8px;"></i> Print
                                                             </li>
-                                                            <li class="dropdown-item" t-on-click="() => this.onDeleteMessage(threadMsg)">
+                                                            <li class="dropdown-item" t-on-click="(ev) => this.onDeleteMessage(ev, threadMsg)">
                                                                 <i class="fa fa-trash" style="margin-right: 8px;"></i> Delete this message
                                                             </li>
                                                         </ul>
