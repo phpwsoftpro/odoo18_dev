@@ -1,5 +1,5 @@
 /** @odoo-module **/
-import { Component, markup, onMounted } from "@odoo/owl";
+import { Component, markup, onMounted, useEffect } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { initCKEditor, loadCKEditor } from "./ckeditor";
@@ -172,6 +172,58 @@ export class GmailInbox extends Component {
             this.state.showAdvancedSearch = !this.state.showAdvancedSearch;
             this.render();  // Re-render to reflect the state change
         };
+        // ===== Build chuỗi query theo style Gmail
+        this.buildSearchQueryString = (q) => {
+            const parts = [];
+            if (q.from) parts.push(`from:(${q.from})`);
+            if (q.to) parts.push(`to:(${q.to})`);
+            if (q.subject) parts.push(`subject:(${q.subject})`);
+            if (q.hasWords) parts.push(q.hasWords);
+            if (q.doesntHave) parts.push(`-${q.doesntHave}`);
+
+            // size: Gmail dùng larger/smaller
+            if (q.sizeValue) {
+                const op = q.sizeOperator === "greater" ? "larger" : "smaller";
+                parts.push(`${op}:${q.sizeValue}${(q.sizeUnit || "MB").toUpperCase()}`);
+            }
+
+            // date
+            if (q.dateValue) parts.push(`before:${q.dateValue.replace(/-/g, "/")}`);
+            if (q.dateWithin && q.dateWithin !== "1 day") {
+                if (q.dateWithin === "1 week") parts.push("newer_than:7d");
+                if (q.dateWithin === "1 month") parts.push("newer_than:30d");
+            }
+
+            // in:
+            if (q.searchIn && q.searchIn !== "all") parts.push(`in:${q.searchIn}`);
+
+            if (q.hasAttachment) parts.push("has:attachment");
+            if (q.excludeChats) parts.push("-in:chats");
+            return parts.join(" ").trim();
+        };
+
+        // ===== Tự động cập nhật preview mỗi khi user nhập trong popup (vì template dùng t-model)
+        useEffect(
+            () => {
+                this.state.searchBarValue = this.buildSearchQueryString(this.state.searchQuery);
+            },
+            () => [
+                this.state.searchQuery.from,
+                this.state.searchQuery.to,
+                this.state.searchQuery.subject,
+                this.state.searchQuery.hasWords,
+                this.state.searchQuery.doesntHave,
+                this.state.searchQuery.sizeOperator,
+                this.state.searchQuery.sizeValue,
+                this.state.searchQuery.sizeUnit,
+                this.state.searchQuery.dateWithin,
+                this.state.searchQuery.dateValue,
+                this.state.searchQuery.searchIn,
+                this.state.searchQuery.hasAttachment,
+                this.state.searchQuery.excludeChats,
+            ],
+        );
+
 
         // Example search query state
         this.state.searchQuery = {
@@ -188,31 +240,6 @@ export class GmailInbox extends Component {
             searchIn: 'all',
             hasAttachment: false,
             excludeChats: false,
-        };
-        this.onSearchAdvanced = async () => {
-            const query = { ...this.state.searchQuery };
-            let queryStr = "";
-            if (query.from) queryStr += `from:(${query.from}) `;
-            if (query.to) queryStr += `to:(${query.to}) `;
-            if (query.subject) queryStr += `subject:(${query.subject}) `;
-            if (query.hasWords) queryStr += `${query.hasWords} `;
-            if (query.doesntHave) queryStr += `-${query.doesntHave} `;
-            if (query.dateValue) queryStr += `before:${query.dateValue.replace(/-/g, "/")} `;
-            if (query.dateWithin && query.dateWithin !== "1 day") {
-                if (query.dateWithin === "1 week") queryStr += "newer_than:7d ";
-                if (query.dateWithin === "1 month") queryStr += "newer_than:30d ";
-            }
-            if (query.searchIn && query.searchIn !== "all") queryStr += `in:${query.searchIn} `;
-            if (query.hasAttachment) queryStr += "has:attachment ";
-            // ...bổ sung các filter khác nếu muốn...
-
-            this.state.searchBarValue = queryStr.trim();
-
-            this.state.isLoading = true;
-            await this.loadMessagesWithAdvancedSearch(query);
-            this.state.isLoading = false;
-            this.state.showSearchPopup = false;
-            this.render();
         };
 
         this.toggleSearchPopup = () => {

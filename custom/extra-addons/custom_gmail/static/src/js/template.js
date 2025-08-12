@@ -16,7 +16,7 @@ export default xml`
             <input type="text" placeholder="Search mail"
                 t-model="state.searchBarValue"
                 readonly="true"
-                style="cursor: pointer;"
+                style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
                 t-on-click="toggleSearchPopup"
             />
             <t t-if="state.searchBarValue">
