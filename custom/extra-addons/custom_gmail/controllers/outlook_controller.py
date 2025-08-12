@@ -4,7 +4,7 @@ import requests
 import logging
 from lxml import html
 import re
-
+import json
 _logger = logging.getLogger(__name__)
 
 
@@ -267,6 +267,120 @@ class OutlookMessageController(http.Controller):
             "content_type": message.get("body", {}).get("contentType", "unknown"),
         }
 
+    @http.route(
+        "/outlook/send_email", type="http", auth="user", methods=["POST"], csrf=False
+    )
+    def outlook_send_email(self, **kw):
+        # Lấy tài khoản Outlook của user
+        account = (
+            request.env["outlook.account"]
+            .sudo()
+            .search([("user_id", "=", request.env.user.id)], limit=1)
+        )
+        if not account or not account.outlook_access_token:
+            return request.make_response(
+                json.dumps(
+                    {"status": "error", "message": "Outlook account/token missing"}
+                ),
+                headers=[("Content-Type", "application/json")],
+            )
+
+        form = request.httprequest.form
+        files = request.httprequest.files.getlist("attachments[]")
+
+        to = (form.get("to") or "").strip()
+        cc = (form.get("cc") or "").strip()
+        bcc = (form.get("bcc") or "").strip()
+        subject = form.get("subject") or ""
+        body_html = form.get("body_html") or ""
+
+        if not to:
+            return request.make_response(
+                json.dumps({"status": "error", "message": "Missing 'to'"}),
+                headers=[("Content-Type", "application/json")],
+            )
+
+        # Build recipients
+        def _emails(s):
+            return [
+                {"emailAddress": {"address": x.strip()}}
+                for x in s.split(",")
+                if x and x.strip()
+            ]
+
+        payload = {
+            "message": {
+                "subject": subject,
+                "body": {"contentType": "HTML", "content": body_html},
+                "toRecipients": _emails(to),
+            },
+            "saveToSentItems": True,
+        }
+        if cc:
+            payload["message"]["ccRecipients"] = _emails(cc)
+        if bcc:
+            payload["message"]["bccRecipients"] = _emails(bcc)
+
+        # File attachments (Graph cần base64)
+        attachments = []
+        for f in files:
+            content_bytes = base64.b64encode(f.read()).decode("ascii")
+            attachments.append(
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": f.filename,
+                    "contentBytes": content_bytes,
+                    "contentType": f.mimetype or "application/octet-stream",
+                }
+            )
+        if attachments:
+            payload["message"]["attachments"] = attachments
+
+        headers = {
+            "Authorization": f"Bearer {account.outlook_access_token}",
+            "Content-Type": "application/json",
+        }
+        url = "https://graph.microsoft.com/v1.0/me/sendMail"
+        resp = requests.post(url, headers=headers, json=payload)
+
+        # Refresh token nếu 401 (tái sử dụng logic refresh như /outlook/messages của bạn)
+        if resp.status_code == 401 and account.outlook_refresh_token:
+            cfg = request.env["outlook.mail.sync"].sudo().get_outlook_config()
+            tk = requests.post(
+                "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+                data={
+                    "client_id": cfg["client_id"],
+                    "client_secret": cfg["client_secret"],
+                    "grant_type": "refresh_token",
+                    "refresh_token": account.outlook_refresh_token,
+                    "redirect_uri": cfg["redirect_uri"],
+                    "scope": "https://graph.microsoft.com/.default",
+                },
+            )
+            if tk.status_code == 200:
+                j = tk.json()
+                new_access = j.get("access_token")
+                if new_access:
+                    account.sudo().write(
+                        {
+                            "outlook_access_token": new_access,
+                            "outlook_refresh_token": j.get("refresh_token")
+                            or account.outlook_refresh_token,
+                        }
+                    )
+                    headers["Authorization"] = f"Bearer {new_access}"
+                    resp = requests.post(url, headers=headers, json=payload)
+
+        if resp.status_code in (200, 202):
+            return request.make_response(
+                json.dumps({"status": "ok"}),
+                headers=[("Content-Type", "application/json")]
+            )
+        return request.make_response(
+            json.dumps({"status": "error", "message": resp.text}),
+            headers=[("Content-Type", "application/json")],
+            status=400
+        )
     @http.route("/outlook/draft_messages", type="json", auth="user", csrf=False)
     def outlook_draft_messages(self, **kw):
         """Fetch draft emails from Outlook"""
