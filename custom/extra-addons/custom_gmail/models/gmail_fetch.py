@@ -381,7 +381,7 @@ class GmailFetch(models.Model):
                                 "email_cc": cc,
                                 "thread_id": msg.get("threadId"),
                                 "message_id": message_id,
-                                # "gmail_labels": ",".join(label_ids),
+                                "gmail_labels": ",".join(label_ids),
                             }
                         )
                     )

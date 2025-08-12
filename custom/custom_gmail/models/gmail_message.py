@@ -17,7 +17,7 @@ class GmailMessage(models.Model):
     sender_name = fields.Char(string="Sender Name")
     receiver_name = fields.Char(string="Receiver Name")
     avatar_url = fields.Char(compute="_compute_avatar_url", store=False)
-    # gmail_labels = fields.Char(string="Gmail Labels")
+    gmail_labels = fields.Char(string="Gmail Labels", default=list)
     gmail_id = fields.Char(string="Gmail ID", index=True)
     gmail_body = fields.Text(string="Body")
     is_gmail = fields.Boolean(string="Is Gmail Message", default=False)

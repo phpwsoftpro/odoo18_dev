@@ -152,6 +152,22 @@ export class GmailInbox extends Component {
         this.state.searchBarValue = "";
         this.switchFolder = this._switchFolder.bind(this);
 
+        this.labelMappings = {
+            INBOX: { name: 'Hộp thư đến', folder: 'inbox' },
+            STARRED: { name: 'Có gắn dấu sao', folder: 'starred' },
+            SENT: { name: 'Đã gửi', folder: 'sent' },
+            DRAFT: { name: 'Thư nháp', folder: 'drafts' },
+            IMPORTANT: { name: 'Quan trọng', folder: 'important' },
+            TRASH: { name: 'Thùng rác', folder: 'trash' },
+            SPAM: { name: 'Thư rác', folder: 'spam' },
+            CATEGORY_PROMOTIONS: { name: 'Quảng cáo', folder: 'category_promotions' },
+            CATEGORY_SOCIAL: { name: 'Mạng xã hội', folder: 'category_social' },
+            CATEGORY_UPDATES: { name: 'Cập nhật', folder: 'category_updates' },
+            CATEGORY_FORUMS: { name: 'Diễn đàn', folder: 'category_forums' },
+        };
+        this.getLabelName = (id) => this.labelMappings[id]?.name || id;
+        this.getFolderFromLabel = (id) => this.labelMappings[id]?.folder || 'inbox';
+
         // Logic toggle sidebar "Hiện thêm"
         this.toggleShowAllFolders = () => {
             this.state.showAllFolders = !this.state.showAllFolders;
@@ -529,6 +545,7 @@ export class GmailInbox extends Component {
         // ✅ Phân nhóm theo thread_id
         this.state.threads = {};
         for (const msg of res.messages) {
+            msg.labels = msg.labels || [];
             msg.dateInbox = formatInboxDate(msg.date_received);
             msg.dateDisplayed = formatDate(msg.date_received) + ' (' + timeAgo(msg.date_received) + ')';
             // ✅ Không làm sạch nữa, dùng nguyên gốc
@@ -582,6 +599,7 @@ export class GmailInbox extends Component {
         const threads = {};
 
         for (const msg of res.messages) {
+            msg.labels = msg.labels || [];
             msg.body_cleaned = msg.body;
             msg.body = markup(msg.body);
 
@@ -629,6 +647,7 @@ export class GmailInbox extends Component {
         const threads = {};
 
         for (const msg of res.messages) {
+            msg.labels = msg.labels || [];
             msg.body_cleaned = msg.body;
             msg.body = markup(msg.body);
 
@@ -676,6 +695,7 @@ export class GmailInbox extends Component {
         });
 
         for (const msg of res.messages) {
+            msg.labels = msg.labels || [];
             msg.body_cleaned = msg.body;
             msg.body = markup(msg.body);
 
@@ -714,6 +734,7 @@ export class GmailInbox extends Component {
 
         this.state.threads = {};
         for (const msg of res.messages) {
+            msg.labels = msg.labels || [];
             msg.body_cleaned = msg.body;
             msg.body = markup(msg.body);
 
@@ -860,6 +881,7 @@ export class GmailInbox extends Component {
             // ✅ Re-patch toàn bộ để đảm bảo dữ liệu đủ cho template
             const patchedMessages = messages.map(msg => ({
                 ...msg,
+                labels: msg.labels || [],
                 body_cleaned: msg.body?.split('<div class="gmail_quote">')[0]
                     || msg.body?.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, "")
                     || msg.body,
@@ -983,6 +1005,7 @@ export class GmailInbox extends Component {
         this.state.currentThread = Array.isArray(thread) && thread.length
             ? thread.map(m => ({
                 ...m,
+                labels: m.labels || [],
                 // body_cleaned: m.body?.split('<div class="gmail_quote">')[0]
                 //     || m.body?.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, "")
                 //     || m.body,
@@ -1015,6 +1038,7 @@ export class GmailInbox extends Component {
                     console.log("✅ Full thread received:", res.messages.length, "messages");
                     thread = res.messages.map(m => ({
                         ...m,
+                        labels: m.labels || [],
                         body_cleaned: m.body,
                         body: markup(m.body),
                         sender: m.sender || m.email_sender || "Unknown Sender",

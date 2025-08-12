@@ -440,6 +440,13 @@ export default xml`
                                     <h1 class="detail-subject">
                                         <t t-esc="state.selectedMessage.subject"/>
                                     </h1>
+                                    <div class="email-labels" t-if="(state.selectedMessage.labels || []).length">
+                                        <t t-foreach="state.selectedMessage.labels" t-as="lbl" t-key="lbl">
+                                            <span class="email-label"
+                                                t-esc="this.getLabelName(lbl)"
+                                                t-on-click="() => this.switchFolder(this.getFolderFromLabel(lbl))"/>
+                                        </t>
+                                    </div>
                                 </div>
                                 <div class="thread-container">
                                     <t t-foreach="state.currentThread" t-as="threadMsg" t-key="threadMsg.id">

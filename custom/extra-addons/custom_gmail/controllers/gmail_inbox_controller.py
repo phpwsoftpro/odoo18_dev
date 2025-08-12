@@ -169,6 +169,7 @@ class GmailInboxController(http.Controller):
                     "is_read": msg.is_read,
                     "is_starred_mail": msg.is_starred_mail,
                     "avatar_url": msg.avatar_url,
+                    "labels": (msg.gmail_labels or "").split(",") if msg.gmail_labels else [],
                 }
             )
 
@@ -234,6 +235,7 @@ class GmailInboxController(http.Controller):
                     "is_read": msg.is_read,
                     "is_starred_mail": msg.is_starred_mail,
                     "is_sent_mail": msg.is_sent_mail,
+                    "labels": (msg.gmail_labels or "").split(",") if msg.gmail_labels else [],
                 }
             )
 
@@ -296,6 +298,7 @@ class GmailInboxController(http.Controller):
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
                     "avatar_url": msg.avatar_url,
+                    "labels": (msg.gmail_labels or "").split(",") if msg.gmail_labels else [],
                 }
             )
 
@@ -357,6 +360,7 @@ class GmailInboxController(http.Controller):
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
+                    "labels": (msg.gmail_labels or "").split(",") if msg.gmail_labels else [],
                 }
             )
 
@@ -420,6 +424,7 @@ class GmailInboxController(http.Controller):
                     "message_id": msg.message_id or "",
                     "is_read": msg.is_read,
                     "is_starred_mail": msg.is_starred_mail,
+                    "labels": (msg.gmail_labels or "").split(",") if msg.gmail_labels else [],
                 }
             )
 
@@ -1448,6 +1453,7 @@ class MailAPIController(http.Controller):
                     "is_starred_mail": msg.is_starred_mail,
                     "is_sent_mail": msg.is_sent_mail,
                     "avatar_url": msg.avatar_url,
+                    "labels": (msg.gmail_labels or "").split(",") if msg.gmail_labels else [],
                 }
             )
 
