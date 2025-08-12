@@ -17,10 +17,11 @@ class GmailAuthController(Controller):
         _logger.info("🔐 Gmail OAuth flow started from /gmail/auth/start")
         config = request.env["mail.message"].sudo().get_google_config()
         scope = (
-            "openid email "
+            "openid email profile "
             "https://www.googleapis.com/auth/gmail.readonly "
             "https://www.googleapis.com/auth/gmail.send "
-            "https://www.googleapis.com/auth/gmail.compose"
+            "https://www.googleapis.com/auth/gmail.compose "
+            "https://www.googleapis.com/auth/contacts.readonly"
         )
         params = {
             "client_id": config["client_id"],
@@ -79,6 +80,16 @@ class GmailAuthController(Controller):
         _logger.debug("👤 User Info: %s", json.dumps(user_info, indent=2))
         gmail_email = user_info.get("email")
 
+        people_info = requests.get(
+            "https://people.googleapis.com/v1/people/me?personFields=photos",
+            headers={"Authorization": f"Bearer {access_token}"}
+        ).json()
+
+        avatar_url = ""
+        photos = people_info.get("photos", [])
+        if photos:
+            avatar_url = photos[0].get("url", "")
+
         if not gmail_email:
             _logger.error(
                 "❌ Không lấy được Gmail email từ token! UserInfo: %s",
@@ -119,6 +130,8 @@ class GmailAuthController(Controller):
                         "refresh_token": refresh_token,
                         "token_expiry": datetime.utcnow()
                         + timedelta(seconds=expires_in),
+                        "avatar_url": avatar_url,  # ✅ Lưu avatar
+
                     }
                 )
             )
@@ -131,6 +144,8 @@ class GmailAuthController(Controller):
                         refresh_token if refresh_token else account.refresh_token
                     ),
                     "token_expiry": datetime.utcnow() + timedelta(seconds=expires_in),
+                    "avatar_url": avatar_url,  # ✅ Lưu avatar
+
                 }
             )
 
