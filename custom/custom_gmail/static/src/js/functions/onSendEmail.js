@@ -17,33 +17,56 @@ function applyCidSrc(html) {
     });
     return doc.body ? doc.body.innerHTML : (html || "");
 }
-//  Quét ảnh base64 trong HTML -> gắn data-cid & sinh danh sách attachments inline
-function harvestInlineDataImages(html) {
+//  Quét ảnh base64/blob trong HTML -> gắn data-cid & sinh danh sách attachments inline
+async function harvestInlineDataImages(html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html || "", "text/html");
-    const extraInline = []; // {name, content, mimetype, cid, inline:true}
+    const extraInline = []; // {name, content|fileObj, mimetype, cid, inline:true}
     let seq = 0;
+    const now = Date.now();
+    const jobs = [];
 
-    doc.querySelectorAll("img").forEach(img => {
-        if (img.hasAttribute("data-cid")) return; // đã xử lý (từ forward)
+    doc.querySelectorAll("img").forEach((img) => {
+        if (img.hasAttribute("data-cid")) return; // đã xử lý (từ forward/editor)
         const src = img.getAttribute("src") || "";
-        if (!src.startsWith("data:image/")) return;
 
-        const m = src.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-        if (!m) return;
+        // 1) data:image/*  (giữ nguyên)
+        if (src.startsWith("data:image/")) {
+            const m = src.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+            if (!m) return;
+            const mimetype = m[1];
+            const base64 = m[2];
+            const ext = (mimetype.split("/")[1] || "png").toLowerCase();
+            const name = `inline-${now}-${seq}.${ext}`;
+            const cid  = `inline${now}-${seq}@compose.local`;
+            seq++;
+            img.setAttribute("data-cid", cid);
+            extraInline.push({ name, content: base64, mimetype, cid, inline: true });
+            return;
+        }
 
-        const mimetype = m[1];
-        const base64 = m[2];
-        const ext = (mimetype.split("/")[1] || "png").toLowerCase();
-        const name = `inline-${Date.now()}-${seq}.${ext}`;
-        const cid = `inline${Date.now()}-${seq}@compose.local`;
-        seq++;
-
-        // gắn data-cid để lát nữa applyCidSrc() đổi sang src="cid:..."
-        img.setAttribute("data-cid", cid);
-
-        extraInline.push({ name, content: base64, mimetype, cid, inline: true });
+        // 2) blob:*  (mới thêm)
+        if (src.startsWith("blob:")) {
+            jobs.push((async () => {
+                try {
+                    const resp = await fetch(src);
+                    const blob = await resp.blob();
+                    const mimetype = blob.type || "image/png";
+                    const ext = (mimetype.split("/")[1] || "png").toLowerCase();
+                    const name = `inline-${now}-${seq}.${ext}`;
+                    const cid  = `inline${now}-${seq}@compose.local`;
+                    seq++;
+                    img.setAttribute("data-cid", cid);
+                    const fileObj = new File([blob], name, { type: mimetype });
+                    extraInline.push({ fileObj, name, mimetype, cid, inline: true });
+                } catch (e) {
+                    console.warn("⚠️ Không đọc được blob image:", e);
+                }
+            })());
+        }
     });
+
+    if (jobs.length) await Promise.all(jobs);
 
     return {
         html: doc.body ? doc.body.innerHTML : (html || ""),
@@ -51,13 +74,21 @@ function harvestInlineDataImages(html) {
     };
 }
 
-// Chuyển inline attachments (base64) từ state → File và tạo manifest
 function buildInlineFilesAndManifest(stateAttachments) {
     const uploadFiles = [];     // [{fileObj, name}]
     const inlineManifest = [];  // [{name, cid, mimetype}]
     (stateAttachments || []).forEach(item => {
         if (item.fileObj) {
-            uploadFiles.push({ fileObj: item.fileObj, name: item.name || item.fileObj.name });
+            const name = item.name || item.fileObj.name;
+            uploadFiles.push({ fileObj: item.fileObj, name });
+            // ⬅️ MỚI: nếu là inline (có cid) thì thêm vào manifest
+            if (item.inline && item.cid) {
+                inlineManifest.push({
+                    name,
+                    cid: item.cid,
+                    mimetype: item.fileObj.type || item.mimetype || "image/png",
+                });
+            }
         } else if (item.content && item.cid && item.mimetype && item.name) {
             const bin = Uint8Array.from(atob(item.content), c => c.charCodeAt(0));
             const fileObj = new File([bin], item.name, { type: item.mimetype });
@@ -68,121 +99,139 @@ function buildInlineFilesAndManifest(stateAttachments) {
     return { uploadFiles, inlineManifest };
 }
 
+
 let attachedFiles = [];
 
 export async function onSendEmail() {
-    const composeData = this.state.composeData || {};
-    const thread_id = composeData.thread_id || null;
-    const message_id = composeData.message_id || null;
+  const composeData = this.state.composeData || {};
+  const thread_id = composeData.thread_id || null;
+  const message_id = composeData.message_id || null;
 
-    const to = document.querySelector('.compose-input.to')?.value || '';
-    const cc = document.querySelector('.compose-input.cc')?.value || '';
-    const bcc = document.querySelector('.compose-input.bcc')?.value || '';
-    const subject = document.querySelector('.compose-input.subject')?.value || '';
-    let body = window.editorInstance ? window.editorInstance.getData() : '';
+  const to = document.querySelector('.compose-input.to')?.value || '';
+  const cc = document.querySelector('.compose-input.cc')?.value || '';
+  const bcc = document.querySelector('.compose-input.bcc')?.value || '';
+  const subject = document.querySelector('.compose-input.subject')?.value || '';
+  let body = window.editorInstance ? window.editorInstance.getData() : '';
 
-    // cắt phần quote nếu có + dọn HTML
-    const splitIndex = body.indexOf('<div class="reply-quote">');
-    let cleanBody = splitIndex !== -1 ? body.slice(0, splitIndex) : body;
-    cleanBody = cleanForwardHtml(cleanBody);
+  // 🚩 LOG: thông tin đầu vào
+  console.groupCollapsed("📨 [SendEmail] initial");
+  console.log("mode:", message_id ? "reply" : "new/forward");
+  console.log("thread_id:", thread_id, "message_id:", message_id);
+  console.log("to/cc/bcc:", { to, cc, bcc });
+  console.log("raw subject:", subject);
+  console.groupEnd();
 
-    const hasAnyRecipient = [to, cc, bcc].some(v => (v || '').trim());
-    if (!hasAnyRecipient) { alert("Vui lòng nhập ít nhất một địa chỉ (To, Cc hoặc Bcc)."); return; }
+  // cắt phần quote nếu có + dọn HTML
+  const splitIndex = body.indexOf('<div class="reply-quote">');
+  let cleanBody = splitIndex !== -1 ? body.slice(0, splitIndex) : body;
+  cleanBody = cleanForwardHtml(cleanBody);
 
-    const account_id = this.state.activeTabId;
-    if (!account_id) { alert("Không xác định được tài khoản gửi."); return; }
+  // 🚩 LOG: kích thước/nội dung sau clean (cắt bớt để tránh ồn log)
+  console.groupCollapsed("🧼 body after clean");
+  console.log("length:", (cleanBody || "").length);
+  console.log("preview:", (cleanBody || "").slice(0, 300));
+  console.groupEnd();
 
-    //  NEW: quét ảnh base64 dán trong editor -> tạo inline attachments + gắn data-cid
-    const { html: withDataCid, extraInline } = harvestInlineDataImages(cleanBody);
+  const hasAnyRecipient = [to, cc, bcc].some(v => (v || '').trim());
+  if (!hasAnyRecipient) { alert("Vui lòng nhập ít nhất một địa chỉ (To, Cc hoặc Bcc)."); return; }
 
-    // Đổi <img data-cid> → src="cid:..." (áp dụng cho cả forward & editor dán ảnh)
-    const bodyToSend = applyCidSrc(withDataCid);
+  const account_id = this.state.activeTabId;
+  if (!account_id) { alert("Không xác định được tài khoản gửi."); return; }
 
-    // Gộp attachments hiện có (file người dùng + ảnh forward) với ảnh mới harvest
-    const combinedAttachments = [ ...(this.state.attachments || []), ...extraInline ];
+  //  NEW: quét ảnh base64 dán trong editor -> tạo inline attachments + gắn data-cid
+  const { html: withDataCid, extraInline } = await harvestInlineDataImages(cleanBody);
 
-    const hasAttachment = combinedAttachments.length > 0;
-    const finalSubject = subject.trim() || ((bodyToSend.trim() || hasAttachment) ? "No Subject" : "");
-    const finalBody = (bodyToSend.trim() || (hasAttachment ? "" : null));
+  // 🚩 LOG: ảnh base64 đã harvest (sẽ thành inline)
+  console.groupCollapsed("🖼️ harvested base64 images → inline");
+  console.log("count:", extraInline.length);
+  // chỉ log tóm tắt để gọn console
+  console.table(extraInline.map(x => ({ name: x.name, cid: x.cid, mimetype: x.mimetype, size_b64: (x.content || "").length })));
+  console.groupEnd();
 
-    if (!finalSubject && !finalBody && !hasAttachment) {
-        alert("Vui lòng nhập nội dung email hoặc đính kèm tệp.");
-        return;
+  // Đổi <img data-cid> → src="cid:..."
+  const bodyToSend = applyCidSrc(withDataCid);
+
+  // 🚩 LOG: liệt kê các CID đã xuất hiện trong HTML sẽ gửi
+  const cidRefsInBody = (bodyToSend.match(/src=["']cid:([^"']+)/gi) || [])
+    .map(s => s.replace(/^.*cid:/, ''));
+  console.log("🔗 CID refs in body:", cidRefsInBody);
+
+  // Gộp attachments hiện có (file người dùng + ảnh forward) với ảnh mới harvest
+  const combinedAttachments = [ ...(this.state.attachments || []), ...extraInline ];
+
+  // 🚩 LOG: tổng hợp attachments trước khi chuyển thành File & manifest
+  console.groupCollapsed("📎 combinedAttachments (before upload)");
+  console.table(combinedAttachments.map(it => ({
+    name: it.name || (it.fileObj && it.fileObj.name) || "(no-name)",
+    type: it.mimetype || (it.fileObj && it.fileObj.type) || "",
+    hasFileObj: !!it.fileObj,
+    hasCid: !!it.cid,
+    inlineFlag: !!it.inline
+  })));
+  console.groupEnd();
+
+  const hasAttachment = combinedAttachments.length > 0;
+  const finalSubject = subject.trim() || ((bodyToSend.trim() || hasAttachment) ? "No Subject" : "");
+  const finalBody = (bodyToSend.trim() || (hasAttachment ? "" : null));
+
+  if (!finalSubject && !finalBody && !hasAttachment) {
+    alert("Vui lòng nhập nội dung email hoặc đính kèm tệp.");
+    return;
+  }
+
+  //  Tạo file upload & inline_manifest từ combinedAttachments
+  const { uploadFiles, inlineManifest } = buildInlineFilesAndManifest(combinedAttachments);
+
+  // 🚩 LOG: kết quả build uploadFiles + inlineManifest
+  console.groupCollapsed("🧾 buildInlineFilesAndManifest()");
+  console.table(uploadFiles.map(f => ({ name: f.name, type: f.fileObj?.type || "", size: f.fileObj?.size || 0 })));
+  console.table(inlineManifest);
+  console.groupEnd();
+
+  const formData = new FormData();
+  formData.append("to", to);
+  formData.append("cc", cc);
+  formData.append("bcc", bcc);
+  formData.append("subject", finalSubject);
+  formData.append("body_html", finalBody ?? "");
+  if (thread_id)  formData.append("thread_id", thread_id);
+  if (message_id) formData.append("message_id", message_id);
+  formData.append("account_id", account_id);
+  formData.append("provider", "gmail");
+
+  uploadFiles.forEach(f => formData.append('attachments[]', f.fileObj, f.name));
+  if (inlineManifest.length) {
+    formData.append("inline_manifest", JSON.stringify(inlineManifest));
+  }
+
+  // 🚩 LOG: nội dung form chuẩn bị gửi
+  console.groupCollapsed("📤 FormData overview");
+  console.log("keys:", [...formData.keys()]);
+  console.log("attachments (names):", uploadFiles.map(f => f.name));
+  console.log("inlineManifest CIDs:", inlineManifest.map(m => m.cid));
+  console.groupEnd();
+
+  try {
+    const response = await fetch('/api/send_email', { method: 'POST', body: formData });
+    const data = await response.json();
+    if (data.status === 'success') {
+      console.info("✅ Send OK. inline vs attach summary:", {
+        bodyCidRefs: cidRefsInBody,
+        inlineNames: inlineManifest.map(m => m.name),
+        attachNames: uploadFiles
+          .map(f => f.name)
+          .filter(n => !inlineManifest.find(m => m.name === n))
+      });
+      alert("✅ Email đã được gửi thành công!");
+      this.state.showComposeModal = false;
+      this.state.attachments = [];
+      if (window.editorInstance) { window.editorInstance.destroy(); window.editorInstance = null; }
+      this.render();
+    } else {
+      throw new Error(data.message || '❌ Gửi mail thất bại');
     }
-
-    //  Tạo file upload & inline_manifest từ combinedAttachments
-    const { uploadFiles, inlineManifest } = buildInlineFilesAndManifest(combinedAttachments);
-
-    const formData = new FormData();
-    formData.append("to", to);
-    formData.append("cc", cc);
-    formData.append("bcc", bcc);
-    formData.append("subject", finalSubject);
-    formData.append("body_html", finalBody ?? "");
-    if (thread_id)  formData.append("thread_id", thread_id);
-    if (message_id) formData.append("message_id", message_id);
-    formData.append("account_id", account_id);
-    formData.append("provider", "gmail");
-
-    uploadFiles.forEach(f => formData.append('attachments[]', f.fileObj, f.name));
-    if (inlineManifest.length) {
-        formData.append("inline_manifest", JSON.stringify(inlineManifest));
-    }
-
-    console.log("🖼️ inlineManifest:", inlineManifest);
-    console.log("🚀 FormData keys:", [...formData.keys()]);
-
-    try {
-        const response = await fetch('/api/send_email', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (data.status === 'success') {
-            alert("✅ Email đã được gửi thành công!");
-            this.state.showComposeModal = false;
-            this.state.attachments = [];
-            if (window.editorInstance) { window.editorInstance.destroy(); window.editorInstance = null; }
-            this.render();
-        } else {
-            throw new Error(data.message || '❌ Gửi mail thất bại');
-        }
-    } catch (err) {
-        alert("⚠️ Có lỗi khi gửi email, xem console.");
-        console.error("❌ Gửi mail lỗi:", err);
-    }
+  } catch (err) {
+    alert("⚠️ Có lỗi khi gửi email, xem console.");
+    console.error("❌ Gửi mail lỗi:", err);
+  }
 }
-
-// Gắn sự kiện xử lý chọn file 
-document.addEventListener("DOMContentLoaded", () => {
-    const input = document.getElementById("file_attachments");
-    const preview = document.getElementById("attachment_preview");
-
-    if (!input || !preview) return;
-
-    input.addEventListener("change", (e) => {
-        const files = Array.from(e.target.files);
-        preview.innerHTML = '';
-        attachedFiles = [];
-
-        files.forEach((file) => {
-            attachedFiles.push({ fileObj: file, name: file.name });
-
-            const li = document.createElement("li");
-            li.textContent = `📄 ${file.name}`;
-            li.style.marginBottom = "5px";
-
-            const removeBtn = document.createElement("button");
-            removeBtn.textContent = "❌";
-            removeBtn.style.marginLeft = "10px";
-            removeBtn.style.cursor = "pointer";
-            removeBtn.onclick = () => {
-                attachedFiles = attachedFiles.filter(f => f.fileObj !== file);
-                li.remove();
-            };
-
-            li.appendChild(removeBtn);
-            preview.appendChild(li);
-        });
-
-        this.state.attachments = attachedFiles;
-        input.value = '';
-    });
-});
