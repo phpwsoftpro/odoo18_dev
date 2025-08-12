@@ -95,6 +95,7 @@ class OutlookMailSync(models.Model):
                 scopes=[
                     "https://graph.microsoft.com/Mail.ReadWrite",
                     "https://graph.microsoft.com/Mail.Read",
+                    "https://graph.microsoft.com/Mail.Send",
                 ],
                 redirect_uri=config["redirect_uri"],
             )
