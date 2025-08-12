@@ -11,7 +11,54 @@ _logger = logging.getLogger(__name__)
 
 
 class GmailAuthController(Controller):
+    
+    def _get_google_avatar_from_people(self, access_token: str) -> str:
+        """
+        Lấy avatar của chính user qua People API:
+        - Ưu tiên ảnh không phải default (user tự đặt).
+        - Nếu URL là ảnh Google (lh3), tăng kích thước lên sz=256.
+        """
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            res = requests.get(
+                "https://people.googleapis.com/v1/people/me",
+                params={"personFields": "photos"},
+                headers=headers,
+                timeout=10,
+            )
+            if res.status_code != 200:
+                _logger.warning("People API returned %s: %s", res.status_code, res.text)
+                return ""
 
+            data = res.json() or {}
+            photos = data.get("photos", []) or []
+            if not photos:
+                return ""
+
+            # Ưu tiên ảnh không default (default=False tốt hơn default=True)
+            photos_sorted = sorted(photos, key=lambda p: p.get("default", True))
+            url = photos_sorted[0].get("url") or ""
+            if not url:
+                return ""
+
+            # Nâng size nếu là ảnh Google
+            if "lh3.googleusercontent.com" in url:
+                if "?" in url:
+                    # thay hoặc thêm sz=256
+                    from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+                    parts = list(urlsplit(url))
+                    qs = dict(parse_qsl(parts[3], keep_blank_values=True))
+                    qs["sz"] = "256"
+                    parts[3] = urlencode(qs)
+                    url = urlunsplit(parts)
+                else:
+                    url = url + "?sz=256"
+
+            return url
+        except Exception as e:
+            _logger.exception("People API error: %s", e)
+            return ""
+        
     @http.route("/gmail/auth/start", type="http", auth="user", methods=["GET"])
     def gmail_auth_start(self, **kw):
         _logger.info("🔐 Gmail OAuth flow started from /gmail/auth/start")
@@ -72,23 +119,38 @@ class GmailAuthController(Controller):
         refresh_token = token_data.get("refresh_token")
         expires_in = token_data.get("expires_in")
 
+        headers = {"Authorization": f"Bearer {access_token}"}
+
+        # 1) Lấy UserInfo (email + có thể có picture)
         _logger.info("📧 Getting user info from token")
-        user_info = requests.get(
+        userinfo_res = requests.get(
             "https://openidconnect.googleapis.com/v1/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-        ).json()
+            headers=headers,
+            timeout=10,
+        )
+        if userinfo_res.status_code != 200:
+            _logger.error("UserInfo error %s: %s", userinfo_res.status_code, userinfo_res.text)
+            return request.render(
+                "custom_gmail.gmail_auth_error",
+                {"error": "Không thể xác định thông tin user từ Google."},
+            )
+
+        user_info = userinfo_res.json()
         _logger.debug("👤 User Info: %s", json.dumps(user_info, indent=2))
         gmail_email = user_info.get("email")
 
-        people_info = requests.get(
-            "https://people.googleapis.com/v1/people/me?personFields=photos",
-            headers={"Authorization": f"Bearer {access_token}"}
-        ).json()
+        # 2) Ưu tiên lấy avatar qua People API (như bạn muốn)
+        avatar_url = self._get_google_avatar_from_people(access_token)
 
-        avatar_url = ""
-        photos = people_info.get("photos", [])
-        if photos:
-            avatar_url = photos[0].get("url", "")
+        # 3) Fallback cuối: nếu People API không trả, dùng picture của OpenID (nếu có)
+        if not avatar_url:
+            ui_pic = (user_info or {}).get("picture") or ""
+            if ui_pic:
+                # tăng size nếu là ảnh Google
+                if "lh3.googleusercontent.com" in ui_pic and "sz=" not in ui_pic:
+                    sep = "&" if "?" in ui_pic else "?"
+                    ui_pic = f"{ui_pic}{sep}sz=256"
+                avatar_url = ui_pic
 
         if not gmail_email:
             _logger.error(
