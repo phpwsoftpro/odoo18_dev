@@ -1,12 +1,12 @@
 import logging
 from odoo import models, api
-
+ 
 _logger = logging.getLogger(__name__)
-
-
+ 
+ 
 class GmailConfig(models.Model):
     _inherit = "mail.message"
-
+ 
     @api.model
     def get_google_config(self):
         """

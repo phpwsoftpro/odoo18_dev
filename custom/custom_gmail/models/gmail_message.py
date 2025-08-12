@@ -5,6 +5,8 @@ import re
 from html import unescape
 from lxml import html, etree
 from markupsafe import Markup
+from email.utils import parseaddr
+import hashlib
 
 _logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ class GmailMessage(models.Model):
 
     sender_name = fields.Char(string="Sender Name")
     receiver_name = fields.Char(string="Receiver Name")
-    avatar_url = fields.Char(string="Avatar URL")
+    avatar_url = fields.Char(compute="_compute_avatar_url", store=False)
     # gmail_labels = fields.Char(string="Gmail Labels")
     gmail_id = fields.Char(string="Gmail ID", index=True)
     gmail_body = fields.Text(string="Body")
@@ -40,6 +42,62 @@ class GmailMessage(models.Model):
     _sql_constraints = [
         ("unique_gmail_id", "unique(gmail_id)", "Gmail ID must be unique!")
     ]
+    
+    @api.depends("email_sender", "is_sent_mail", "is_draft_mail", "gmail_account_id")
+    def _compute_avatar_url(self):
+        def _normalize_email(addr):
+            if not addr:
+                return ""
+            return (parseaddr(addr)[1] or "").strip().lower()
+
+        for msg in self:
+            msg.avatar_url = ""  # default
+
+            # Debug log
+            _logger.info(
+                "[AVATAR_DEBUG] Msg ID=%s | Sent=%s | Draft=%s | sender=%s | AccID=%s | AccEmail=%s | AccAvatar=%s",
+                msg.id,
+                msg.is_sent_mail,
+                msg.is_draft_mail,
+                msg.email_sender,
+                msg.gmail_account_id.id if msg.gmail_account_id else None,
+                (msg.gmail_account_id.email or "").lower() if msg.gmail_account_id else None,
+                msg.gmail_account_id.avatar_url if msg.gmail_account_id else None,
+            )
+
+            # 1) Sent / Draft: luôn ưu tiên avatar của account
+            if msg.is_sent_mail or msg.is_draft_mail:
+                if msg.gmail_account_id and msg.gmail_account_id.avatar_url:
+                    msg.avatar_url = msg.gmail_account_id.avatar_url
+                    continue
+
+                # fallback Gravatar theo email account (ổn định hơn sender)
+                acc_email = _normalize_email(
+                    msg.gmail_account_id.email if msg.gmail_account_id else ""
+                )
+                if acc_email:
+                    email_hash = hashlib.md5(acc_email.encode()).hexdigest()
+                    msg.avatar_url = f"https://www.gravatar.com/avatar/{email_hash}?d=identicon"
+                else:
+                    # fallback cuối cùng nếu thiếu cả account/email
+                    msg.avatar_url = "/web/static/img/placeholder.png"
+                continue
+
+            # 2) Mail đến: thử map sender -> gmail.account
+            sender_email = _normalize_email(msg.email_sender)
+            if sender_email:
+                account = self.env["gmail.account"].sudo().search(
+                    [("email", "=", sender_email)], limit=1
+                )
+                if account and account.avatar_url:
+                    msg.avatar_url = account.avatar_url
+                    continue
+
+                # fallback Gravatar theo sender
+                email_hash = hashlib.md5(sender_email.encode()).hexdigest()
+                msg.avatar_url = f"https://www.gravatar.com/avatar/{email_hash}?d=identicon"
+            else:
+                msg.avatar_url = "/web/static/img/placeholder.png"
 
     def clean_html_content(self, html_content):
         """Clean HTML content and extract meaningful text"""
@@ -262,3 +320,10 @@ class GmailMessage(models.Model):
             error_count,
         )
         return {"success": success_count, "errors": error_count}
+    
+    def extract_email_only(self, raw):
+        """
+        Extract email from 'John Doe <john@example.com>' => john@example.com
+        """
+        match = re.search(r"<([^>]+)>", raw)
+        return match.group(1) if match else raw.strip()
