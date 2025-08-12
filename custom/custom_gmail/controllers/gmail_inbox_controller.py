@@ -169,7 +169,6 @@ class GmailInboxController(http.Controller):
                     "is_read": msg.is_read,
                     "is_starred_mail": msg.is_starred_mail,
                     "avatar_url": msg.avatar_url,
-
                 }
             )
 
@@ -297,7 +296,6 @@ class GmailInboxController(http.Controller):
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
                     "avatar_url": msg.avatar_url,
-
                 }
             )
 
@@ -799,7 +797,6 @@ class MailAPIController(http.Controller):
                 part.add_header(
                     "Content-Disposition",
                     "inline",
-                               
                     **{"filename*": encode_rfc2231(fname, "utf-8")},
                 )
                 inlines.append(part)
@@ -810,10 +807,12 @@ class MailAPIController(http.Controller):
                 part = MIMEBase(maintype, subtype)
                 part.set_payload(content)
                 encoders.encode_base64(part)
-                part.add_header("Content-Disposition", "attachment",
-                                **{"filename*": encode_rfc2231(fname, "utf-8")})
+                part.add_header(
+                    "Content-Disposition",
+                    "attachment",
+                    **{"filename*": encode_rfc2231(fname, "utf-8")},
+                )
                 attachments.append(part)
-
 
         # ---- Outlook ----
         if provider == "outlook":
@@ -939,8 +938,9 @@ class MailAPIController(http.Controller):
                     "client_secret": config["client_secret"],
                     "refresh_token": acct.refresh_token,
                     "grant_type": "refresh_token",
-                },
+                }
             )
+
             resp.raise_for_status()
             tok = resp.json()
             token = tok.get("access_token")
