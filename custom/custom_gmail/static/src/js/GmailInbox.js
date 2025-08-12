@@ -192,6 +192,13 @@ export class GmailInbox extends Component {
         this.toggleSearchPopup = () => {
             this.state.showSearchPopup = !this.state.showSearchPopup;
             this.render();
+            if (this.state.showSearchPopup) {
+                setTimeout(() => {
+                    document.addEventListener("mousedown", this._onClickOutsideSearchPopup);
+                }, 0);
+            } else {
+                document.removeEventListener("mousedown", this._onClickOutsideSearchPopup);
+            }            
         };
         this.state.showSearchPopup = false;
         
@@ -265,6 +272,14 @@ export class GmailInbox extends Component {
             this.render();
         };
 
+        this._onClickOutsideSearchPopup = (event) => {
+            const popup = document.querySelector(".advanced-search-popup");
+            const btn = document.querySelector(".gmail-advanced-icon");
+            if (popup?.contains(event.target) || btn?.contains(event.target)) return;
+            this.state.showSearchPopup = false;
+            document.removeEventListener("mousedown", this._onClickOutsideSearchPopup);
+            this.render();
+        };
 
         // 🛑 Khôi phục từ localStorage (ban đầu)
         const savedAccounts = localStorage.getItem("gmail_accounts");

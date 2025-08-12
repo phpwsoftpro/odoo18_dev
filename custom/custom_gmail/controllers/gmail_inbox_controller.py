@@ -1440,30 +1440,37 @@ class MailAPIController(http.Controller):
         messages = []
         total = 0
         page_token = None
-        max_pages = 3
-
-        for page_num in range(1, max_pages + 1):
+        page_num = 1
+        while True:
             if page_token:
                 params["pageToken"] = page_token
             else:
                 params.pop("pageToken", None)
-            _logger.info(f"🔎 [GMAIL SEARCH] Fetching page {page_num} with params: {params}")
+            _logger.info(
+                f"🔎 [GMAIL SEARCH] Fetching page {page_num} with params: {params}"
+            )
             resp = requests.get(url, headers=headers, params=params)
             if resp.status_code != 200:
-                _logger.error(f"❌ [GMAIL SEARCH] Gmail API error page {page_num}: {resp.text}")
+                _logger.error(
+                    f"❌ [GMAIL SEARCH] Gmail API error page {page_num}: {resp.text}"
+                )
                 break
 
             data = resp.json()
             if page_num == 1:
                 total = data.get("resultSizeEstimate", 0)
             message_ids = [m["id"] for m in data.get("messages", [])]
-            _logger.info(f"🔎 [GMAIL SEARCH] Page {page_num} got {len(message_ids)} messages")
+            _logger.info(
+                f"🔎 [GMAIL SEARCH] Page {page_num} got {len(message_ids)} messages"
+            )
 
             for gmail_id in message_ids:
                 detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmail_id}?format=full"
                 detail_resp = requests.get(detail_url, headers=headers)
                 if detail_resp.status_code != 200:
-                    _logger.warning(f"⚠️ [GMAIL SEARCH] Failed to fetch detail for {gmail_id}")
+                    _logger.warning(
+                        f"⚠️ [GMAIL SEARCH] Failed to fetch detail for {gmail_id}"
+                    )
                     continue
                 msg_data = detail_resp.json()
                 payload = msg_data.get("payload", {})
@@ -1483,9 +1490,14 @@ class MailAPIController(http.Controller):
                 message_id = extract_header(payload, "Message-Id")
 
                 def extract_body(payload):
-                    if payload.get("mimeType") == "text/html" and payload.get("body", {}).get("data"):
+                    if payload.get("mimeType") == "text/html" and payload.get(
+                        "body", {}
+                    ).get("data"):
                         import base64
-                        return base64.urlsafe_b64decode(payload["body"]["data"] + "==").decode("utf-8", errors="ignore")
+
+                        return base64.urlsafe_b64decode(
+                            payload["body"]["data"] + "=="
+                        ).decode("utf-8", errors="ignore")
                     for part in payload.get("parts", []):
                         body = extract_body(part)
                         if body:
@@ -1515,6 +1527,5 @@ class MailAPIController(http.Controller):
             if not page_token:
                 _logger.info(f"🔎 [GMAIL SEARCH] No more pages after page {page_num}")
                 break
-
-        _logger.info(f"🔎 [GMAIL SEARCH] Total messages fetched: {len(messages)} (max_pages={max_pages})")
+            page_num += 1
         return {"messages": messages, "total": total}
