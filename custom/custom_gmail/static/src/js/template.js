@@ -477,11 +477,11 @@ export default xml`
 
 
 
-                                                <button class="icon-btn reply" aria-label="Phản hồi" t-on-click="(ev) => this.onReply(ev, threadMsg)">
+                                                <button class="icon-btn reply" title="Trả lời" aria-label="Phản hồi" t-on-click="(ev) => this.onReply(ev, threadMsg)">
                                                     <i class="fa fa-reply"></i>
                                                 </button>
 
-                                                <button class="icon-btn reply-all" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
+                                                <button class="icon-btn reply-all" title="Trả lời tất cả" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
                                                     <i class="fa fa-reply-all"></i>
                                                 </button>
 
@@ -491,7 +491,7 @@ export default xml`
                                                     <i class="fa fa-magic"></i> Phân tích
                                                 </button>
 
-                                                <button class="icon-btn forward" aria-label="Chuyển tiếp" t-on-click="(ev) => this.onForward(ev, state.selectedMessage)">
+                                                <button class="icon-btn forward" title="Chuyển tiếp" aria-label="Chuyển tiếp" t-on-click="(ev) => this.onForward(ev, state.selectedMessage)">
                                                     <i class="fa fa-share"></i>
                                                 </button>
 
