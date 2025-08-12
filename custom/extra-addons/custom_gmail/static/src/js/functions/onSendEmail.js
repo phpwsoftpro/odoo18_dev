@@ -6,7 +6,7 @@ export function onSendEmail() {
     const message_id = composeData.message_id || null;
 
     const to = document.querySelector('.compose-input.to')?.value || '';
-    // const cc = document.querySelector('.compose-input.cc')?.value || '';
+    const cc = document.querySelector('.compose-input.cc')?.value || '';
     const bcc = document.querySelector('.compose-input.bcc')?.value || '';
     const subject = document.querySelector('.compose-input.subject')?.value || '';
 
