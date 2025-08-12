@@ -516,12 +516,44 @@ export default xml`
                                                     </div>
                                             </div>
                                         </div>
-
+                                    <div class="message-body">
                                         <div class="message-content">
                                             
                                             <t t-raw="threadMsg.body"/>
                                         </div>
+                                        <t t-if="threadMsg.attachments && threadMsg.attachments.length">
+                                            <div class="attachments">
+                                                <div class="attachments-title">
+                                                <t t-esc="threadMsg.attachments.length"/> attachment<t t-if="threadMsg.attachments.length > 1">s</t>
+                                                </div>
 
+                                                <div class="attachments-grid">
+                                                <t t-foreach="threadMsg.attachments" t-as="att" t-key="att.id">
+                                                    <div class="attachment-card" t-att-class="this.isImage(att.mimetype) ? 'image' : 'file'">
+                                                    <!-- Ảnh xem trước -->
+                                                    <t t-if="this.isImage(att.mimetype)">
+                                                        <a t-att-href="att.url" target="_blank" rel="noopener">
+                                                        <img t-att-src="att.url" alt="preview" class="attachment-thumb"/>
+                                                        </a>
+                                                    </t>
+                                                    <!-- File thường -->
+                                                    <t t-else="">
+                                                        <div class="file-icon"><i t-att-class="this.iconByMime(att)"></i></div>
+                                                        <div class="file-meta">
+                                                        <div class="file-name" t-att-title="att.name"><t t-esc="att.name"/></div>
+                                                        <div class="file-size">mimetype: <t t-esc="att.mimetype || 'unknown'"/></div>
+                                                        </div>
+                                                    </t>
+
+                                                    <div class="attachment-actions">
+                                                        <a class="btn btn-xs" t-att-href="att.url" target="_blank" rel="noopener">Open</a>
+                                                        <a class="btn btn-xs" t-att-href="att.download_url || (att.url + '&amp;download=true')">Download</a>
+                                                    </div>
+                                                    </div>
+                                                </t>
+                                                </div>
+                                            </div>
+                                            </t>
                                     </div>
                                 </t>
                             </div>
