@@ -1,30 +1,28 @@
 /** @odoo-module **/
 
-// ✅ CHUẨN BỊ ẢNH ĐỂ GỬI: chuyển base64 → cid
+// ✅ CHUẨN BỊ ẢNH TRONG EDITOR (tùy bạn có gọi hay không)
 export function prepareImagesForSending() {
     const composeBodyEl = document.querySelector('.compose-body');
     if (!composeBodyEl) return;
-
-    composeBodyEl.querySelectorAll("img").forEach(img => {
+    composeBodyEl.querySelectorAll("img[data-cid]").forEach(img => {
         const cid = img.getAttribute("data-cid");
-        if (cid) {
-            img.setAttribute("src", `cid:${cid}`);
-        }
+        if (cid) img.setAttribute("src", `cid:${cid}`);
     });
 }
 
-// ✅ TRÍCH XUẤT ẢNH GỬI KÈM VÀ THAY THẾ SRC = base64 + data-cid
+// ✅ TRÍCH XUẤT ẢNH TỪ HTML GỐC ĐỂ GỬI KÈM (đổi src hiển thị = base64, gắn data-cid)
 export async function extractImagesAsCIDAttachments(html) {
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+    const doc = parser.parseFromString(html || "", "text/html");
     const imgs = doc.querySelectorAll("img");
 
-    const attachments = [];
+    const attachments = []; // dạng { name, content(base64), mimetype, cid, inline:true }
 
     for (let i = 0; i < imgs.length; i++) {
         const img = imgs[i];
         const src = img.getAttribute("src") || "";
 
+        // Chỉ xử lý ảnh nội bộ Odoo
         if (src.startsWith("/web/content/")) {
             try {
                 const response = await fetch(src);
@@ -37,21 +35,20 @@ export async function extractImagesAsCIDAttachments(html) {
                     reader.readAsDataURL(blob);
                 });
 
-                const mimeMatch = base64Full.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-                if (!mimeMatch) continue;
+                const match = base64Full.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+                if (!match) continue;
 
-                const mimetype = mimeMatch[1];
-                const base64 = mimeMatch[2];
+                const mimetype = match[1];
+                const base64 = match[2];
                 const ext = mimetype.split("/")[1] || "png";
                 const cid = `inlineimage${i}@forward.local`;
                 const filename = `image${i}.${ext}`;
 
-                // Gán src = base64 (hiển thị nội bộ)
+                // Hiển thị trong editor: dùng base64 để người dùng thấy ảnh
                 img.setAttribute("src", base64Full);
                 img.setAttribute("data-cid", cid);
                 img.setAttribute("data-original-src", base64Full);
 
-                // Gán style an toàn
                 const existingStyle = img.getAttribute("style") || "";
                 img.setAttribute(
                     "style",
@@ -60,13 +57,11 @@ export async function extractImagesAsCIDAttachments(html) {
 
                 attachments.push({
                     name: filename,
-                    content: base64,
+                    content: base64,   // base64 thuần (không header data:)
                     mimetype,
                     cid,
                     inline: true,
-                    originalSrc: base64Full
                 });
-
             } catch (err) {
                 console.warn("⚠️ Không thể xử lý ảnh:", src, err);
             }
@@ -74,15 +69,14 @@ export async function extractImagesAsCIDAttachments(html) {
     }
 
     return {
-        html: doc.body ? doc.body.innerHTML : html,
-        attachments,
+        html: doc.body ? doc.body.innerHTML : (html || ""),
+        attachments, // để set vào this.state.attachments (onSendEmail sẽ chuyển sang File và gắn CID)
     };
 }
 
 // ✅ XỬ LÝ GỬI FORWARD
 export function onForward(ev, msg) {
     ev.preventDefault();
-    
     ev.stopPropagation();
 
     const dropdown = document.querySelector(".dropdown-menu.show, .o-mail-message-options-dropdown.show");
@@ -105,10 +99,17 @@ Subject: ${msg.subject || ''}<br>
 To: ${msg.to || ''}<br><br>
 ${html}`;
 
+        // Gộp attachments sẵn có (nếu có) + ảnh inline mới
+        const mergedAttachments = [
+            ...(this.state.attachments || []),
+            ...(msg.attachments || []),
+            ...attachments
+        ];
+
         this.openComposeModal("forward", {
             subject: `Fwd: ${msg.subject || ''}`,
             body: forwardedBody,
-            attachments: [...(msg.attachments || []), ...attachments],
+            attachments: mergedAttachments, // sẽ được onSendEmail xử lý (File + inline manifest)
             is_forward: true,
             date: rawDate || null,
         });

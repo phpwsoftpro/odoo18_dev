@@ -1,10 +1,12 @@
 # /mnt/extra-addons/.../controllers/gmail_inbox_controller.py
+# /mnt/extra-addons/.../controllers/gmail_inbox_controller.py
 from datetime import timedelta
 
 import base64
 import json
 import logging
 import re
+import mimetypes
 import mimetypes
 
 import requests
@@ -13,12 +15,88 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.mime.image import MIMEImage
+from email.mime.image import MIMEImage
 from email import encoders
 from email.utils import encode_rfc2231
 from email.header import Header
 
+from email.header import Header
+
 from odoo import http, fields
 from odoo.http import request
+
+_logger = logging.getLogger(__name__)
+
+
+def extract_email_only(email_str):
+    match = re.search(r"<(.+?)>", email_str)
+    return match.group(1) if match else email_str
+
+
+def _split_addr(addr):
+    """split chuỗi địa chỉ bởi , ; hoặc khoảng trắng"""
+    return [a.strip() for a in re.split(r"[,\s;]+", addr or "") if a.strip()]
+
+
+def send_email_with_gmail_api(
+    access_token,
+    sender_email,
+    to_email,
+    subject,
+    html_content,
+    thread_id=None,
+    message_id=None,
+    headers=None,
+):
+    message = MIMEMultipart("alternative")
+    message["Subject"] = str(Header(subject, "utf-8"))
+    message["From"] = sender_email
+    message["To"] = to_email
+
+    # ✅ Dùng headers truyền vào nếu có
+    if headers:
+        for key, value in headers.items():
+            message[key] = value
+    elif message_id:
+        parent_ref = f"<{message_id}>"
+        message["In-Reply-To"] = parent_ref
+        message["References"] = parent_ref
+
+    html_part = MIMEText(html_content, "html")
+    message.attach(html_part)
+
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+    api_headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    body = {"raw": raw_message}
+    if thread_id:
+        body["threadId"] = thread_id
+
+    response = requests.post(url, headers=api_headers, json=body)
+    _logger.info(
+        "📬 Gmail API Response xem Message Id: %s",
+        json.dumps(response.json(), indent=2),
+    )
+    if response.status_code in [200, 202]:
+        resp_data = response.json()
+        return {
+            "status": "success",
+            "gmail_id": resp_data.get("id"),
+            "thread_id": resp_data.get("threadId"),
+            "message_id": resp_data.get("messageId"),
+        }
+    else:
+        _logger.error("Failed to send Gmail: %s", response.text)
+        return {
+            "status": "error",
+            "code": response.status_code,
+            "message": response.text,
+        }
 
 _logger = logging.getLogger(__name__)
 
@@ -151,7 +229,9 @@ class GmailInboxController(http.Controller):
                     "to": extract_email_only(msg.email_sender or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
                     ),
                     "body": msg.body,
                     "attachments": attachment_list,
@@ -165,6 +245,7 @@ class GmailInboxController(http.Controller):
             )
 
         return {"messages": result, "total": total}
+        return {"messages": result, "total": total}
 
     @http.route("/gmail/all_mail_messages", type="json", auth="user", csrf=False)
     def get_gmail_all_mail_messages(self, **kwargs):
@@ -176,6 +257,7 @@ class GmailInboxController(http.Controller):
         domain = [
             ("message_type", "=", "email"),
             ("is_gmail", "=", True),
+            ("is_draft_mail", "!=", True),
             ("is_draft_mail", "!=", True),
         ]
         if account_id:
@@ -215,7 +297,9 @@ class GmailInboxController(http.Controller):
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "cc": msg.email_cc or "",
                     "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
                     ),
                     "body": msg.body,
                     "attachments": attachment_list,
@@ -277,7 +361,9 @@ class GmailInboxController(http.Controller):
                     "to": extract_email_only(msg.email_sender or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
                     ),
                     "body": full_body,
                     "attachments": attachment_list,
@@ -338,7 +424,9 @@ class GmailInboxController(http.Controller):
                     "to": extract_email_only(msg.email_sender or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
                     ),
                     "body": full_body,
                     "attachments": attachment_list,
@@ -397,7 +485,9 @@ class GmailInboxController(http.Controller):
                     "to": extract_email_only(msg.email_sender or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
                     ),
                     "body": msg.body,
                     "attachments": attachment_list,
@@ -422,12 +512,18 @@ class GmailInboxController(http.Controller):
         accounts = (
             request.env["gmail.account"]
             .sudo()
-            .search([("user_id", "=", request.env.user.id)], order="write_date desc", limit=1)
+            .search(
+                [("user_id", "=", request.env.user.id)],
+                order="write_date desc",
+                limit=1,
+            )
         )
 
         if not accounts:
             return {"status": "error", "message": "No Gmail accounts found"}
+            return {"status": "error", "message": "No Gmail accounts found"}
 
+        return {"status": "success", "email": accounts[0].email}
         return {"status": "success", "email": accounts[0].email}
 
     @http.route("/gmail/account_id_by_email", type="json", auth="user")
@@ -435,7 +531,9 @@ class GmailInboxController(http.Controller):
         account = (
             request.env["gmail.account"]
             .sudo()
-            .search([("email", "=", email), ("user_id", "=", request.env.user.id)], limit=1)
+            .search(
+                [("email", "=", email), ("user_id", "=", request.env.user.id)], limit=1
+            )
         )
         return {"account_id": account.id if account else False}
 
@@ -447,7 +545,9 @@ class GmailInboxController(http.Controller):
             return {"status": "fail", "error": "Thiếu account_id"}
 
         try:
-            _logger.info("📥 [START] Đã nhận refresh request cho account_id = %s", account_id)
+            _logger.info(
+                "📥 [START] Đã nhận refresh request cho account_id = %s", account_id
+            )
 
             account = request.env["gmail.account"].sudo().browse(int(account_id))
             if not account.exists():
@@ -455,18 +555,30 @@ class GmailInboxController(http.Controller):
                 return {"status": "fail", "error": "Account không tồn tại"}
 
             result_inbox = request.env["mail.message"].fetch_gmail_for_account(account)
-            result_sent = request.env["mail.message"].fetch_gmail_sent_for_account(account)
-            result_draft = request.env["mail.message"].fetch_gmail_drafts_for_account(account)
-            result_starred = request.env["mail.message"].fetch_gmail_starred_for_account(account)
+            result_sent = request.env["mail.message"].fetch_gmail_sent_for_account(
+                account
+            )
+            result_draft = request.env["mail.message"].fetch_gmail_drafts_for_account(
+                account
+            )
+            result_starred = request.env[
+                "mail.message"
+            ].fetch_gmail_starred_for_account(account)
             _logger.info("✅ [DONE] Refresh xong cho account_id = %s", account_id)
             return {
                 "status": (
-                    "ok" if (result_inbox and result_sent and result_draft and result_starred) else "fail"
+                    "ok"
+                    if (
+                        result_inbox and result_sent and result_draft and result_starred
+                    )
+                    else "fail"
                 )
             }
 
         except Exception as e:
-            _logger.exception("❌ Lỗi khi xử lý refresh_mail cho account_id = %s", account_id)
+            _logger.exception(
+                "❌ Lỗi khi xử lý refresh_mail cho account_id = %s", account_id
+            )
             return {"status": "fail", "error": str(e)}
 
     @http.route("/gmail/sync_account", type="json", auth="user")
@@ -483,8 +595,11 @@ class GmailInboxController(http.Controller):
         user_id = request.env.user.id
         GmailAccount = request.env["gmail.account"].sudo()
 
-        existing = GmailAccount.search([("email", "=", email), ("user_id", "=", user_id)], limit=1)
+        existing = GmailAccount.search(
+            [("email", "=", email), ("user_id", "=", user_id)], limit=1
+        )
         if not existing:
+            GmailAccount.create({"user_id": user_id, "email": email})
             GmailAccount.create({"user_id": user_id, "email": email})
 
         return {"status": "saved"}
@@ -494,7 +609,9 @@ class GmailInboxController(http.Controller):
         accounts = (
             request.env["gmail.account"]
             .sudo()
-            .search([("user_id", "=", request.env.user.id), ("access_token", "!=", False)])
+            .search(
+                [("user_id", "=", request.env.user.id), ("access_token", "!=", False)]
+            )
         )
         return [
             {
@@ -510,7 +627,9 @@ class GmailInboxController(http.Controller):
 
     @http.route("/gmail/session/ping", type="json", auth="user")
     def ping(self, account_id):
-        _logger.warning(f"📥 [PING] Nhận account_id: {account_id} (type={type(account_id)})")
+        _logger.warning(
+            f"📥 [PING] Nhận account_id: {account_id} (type={type(account_id)})"
+        )
 
         try:
             account_id = int(account_id)
@@ -524,7 +643,9 @@ class GmailInboxController(http.Controller):
             return {"error": "account not found"}
 
         user_id = request.env.user.id
-        _logger.warning(f"📥 [PING] Đang tạo session với gmail_account_id={account.id}, user_id={user_id}")
+        _logger.warning(
+            f"📥 [PING] Đang tạo session với gmail_account_id={account.id}, user_id={user_id}"
+        )
 
         session_model = request.env["gmail.account.session"].sudo()
         session = session_model.search(
@@ -540,13 +661,18 @@ class GmailInboxController(http.Controller):
             _logger.info("🆕 [PING] Chưa có session → tạo mới")
             try:
                 created = session_model.create(
-                    {"gmail_account_id": account.id, "user_id": user_id, "last_ping": now}
+                    {
+                        "gmail_account_id": account.id,
+                        "user_id": user_id,
+                        "last_ping": now,
+                    }
                 )
                 _logger.info(f"✅ [PING] Đã tạo session ID {created.id}")
             except Exception as e:
                 _logger.critical(
                     f"🔥 [PING] Lỗi khi tạo session! gmail_account_id={account.id}, user_id={user_id} ➤ {e}"
                 )
+                raise
                 raise
 
         return {"has_new_mail": account.has_new_mail}
@@ -563,7 +689,10 @@ class GmailInboxController(http.Controller):
         account = (
             request.env["gmail.account"]
             .sudo()
-            .search([("id", "=", account_id), ("user_id", "=", request.env.user.id)], limit=1)
+            .search(
+                [("id", "=", account_id), ("user_id", "=", request.env.user.id)],
+                limit=1,
+            )
         )
 
         if not account:
@@ -572,22 +701,36 @@ class GmailInboxController(http.Controller):
         messages = (
             request.env["mail.message"]
             .sudo()
-            .search([("model", "=", "gmail.account"), ("res_id", "=", account.id), ("is_gmail", "=", True)])
+            .search(
+                [
+                    ("model", "=", "gmail.account"),
+                    ("res_id", "=", account.id),
+                    ("is_gmail", "=", True),
+                ]
+            )
         )
 
         attachments = (
             request.env["ir.attachment"]
             .sudo()
-            .search([("res_model", "=", "mail.message"), ("res_id", "in", messages.ids)])
+            .search(
+                [("res_model", "=", "mail.message"), ("res_id", "in", messages.ids)]
+            )
         )
         attachments.unlink()
 
-        request.env["mail.notification"].sudo().search([("mail_message_id", "in", messages.ids)]).unlink()
+        request.env["mail.notification"].sudo().search(
+            [("mail_message_id", "in", messages.ids)]
+        ).unlink()
         messages.unlink()
 
-        request.env["gmail.account.sync.state"].sudo().search([("gmail_account_id", "=", account.id)]).unlink()
+        request.env["gmail.account.sync.state"].sudo().search(
+            [("gmail_account_id", "=", account.id)]
+        ).unlink()
 
-        account.write({"access_token": False, "refresh_token": False, "token_expiry": False})
+        account.write(
+            {"access_token": False, "refresh_token": False, "token_expiry": False}
+        )
 
         return {"status": "token_removed"}
 
@@ -620,7 +763,13 @@ class GmailInboxController(http.Controller):
 
 
 class UploadController(http.Controller):
-    @http.route("/custom_gmail/upload_image", type="http", auth="user", csrf=False, methods=["POST"])
+    @http.route(
+        "/custom_gmail/upload_image",
+        type="http",
+        auth="user",
+        csrf=False,
+        methods=["POST"],
+    )
     def upload_image_base64(self, **kwargs):
         upload = request.httprequest.files.get("upload")
         if upload:
@@ -643,6 +792,7 @@ class UploadController(http.Controller):
                     "name": upload.filename,
                     "datas": base64.b64encode(upload.read()),
                     "res_model": "mail.compose.message",
+                    "res_model": "mail.compose.message",
                     "mimetype": upload.content_type,
                 }
             )
@@ -652,10 +802,16 @@ class UploadController(http.Controller):
 
 
 class MailAPIController(http.Controller):
-    @http.route("/api/send_email", type="http", auth="user", csrf=False, methods=["POST"])
+    @http.route(
+        "/api/send_email", type="http", auth="user", csrf=False, methods=["POST"]
+    )
     def send_email(self, **kwargs):
         # ---- Lấy form ----
+        # ---- Lấy form ----
         form = request.httprequest.form
+        to = (form.get("to") or "").strip()
+        cc = (form.get("cc") or "").strip()
+        bcc = (form.get("bcc") or "").strip()
         to = (form.get("to") or "").strip()
         cc = (form.get("cc") or "").strip()
         bcc = (form.get("bcc") or "").strip()
@@ -665,6 +821,14 @@ class MailAPIController(http.Controller):
         message_id = form.get("message_id")
         account_id = form.get("account_id")
         provider = form.get("provider", "gmail")
+
+        # Người nhận: cho phép chỉ Cc/Bcc
+        all_rcpts = _split_addr(to) + _split_addr(cc) + _split_addr(bcc)
+        if not all_rcpts:
+            return request.make_json_response(
+                {"status": "error", "message": "Thiếu người nhận (To/Cc/Bcc)"},
+                status=400,
+            )
 
         # Người nhận: cho phép chỉ Cc/Bcc
         all_rcpts = _split_addr(to) + _split_addr(cc) + _split_addr(bcc)
@@ -692,19 +856,26 @@ class MailAPIController(http.Controller):
             inline_manifest = json.loads(inline_manifest_raw)
         except Exception:
             inline_manifest = []
-        inline_map = {it.get("name"): it for it in inline_manifest if it.get("name") and it.get("cid")}
+        inline_map = {
+            it.get("name"): it
+            for it in inline_manifest
+            if it.get("name") and it.get("cid")
+        }
 
         # ---- Chuẩn bị MIME parts từ file upload ----
-        attachments = []   # parts "attachment"
-        inlines = []       # parts "inline" (Content-ID)
+        attachments = []  # parts "attachment"
+        inlines = []  # parts "inline" (Content-ID)
         for fs in files:
             content = fs.read()
             fs.seek(0)
-            fname = fs.filename or "file"
+            fname = fs.filename
+
             # inline ?
             if fname in inline_map:
                 im = inline_map[fname]
-                mt = im.get("mimetype") or (mimetypes.guess_type(fname)[0] or "application/octet-stream")
+                mt = im.get("mimetype") or (
+                    mimetypes.guess_type(fname)[0] or "application/octet-stream"
+                )
                 maintype, subtype = (mt.split("/", 1) + ["octet-stream"])[:2]
                 if maintype == "image":
                     part = MIMEImage(content, _subtype=subtype)
@@ -713,21 +884,25 @@ class MailAPIController(http.Controller):
                     part.set_payload(content)
                     encoders.encode_base64(part)
                 part.add_header("Content-ID", f"<{im['cid']}>")
-                part.add_header("Content-Disposition", "inline",
-                                **{"filename*": encode_rfc2231(fname, "utf-8")})
+                # filename* utf-8
+                part.add_header(
+                    "Content-Disposition",
+                    "inline",
+                    **{"filename*": f"utf-8''{encode_rfc2231(fname, 'utf-8')}"},
+                )
                 inlines.append(part)
             else:
-                # ✅ đoán đúng Content-Type cho mọi tệp
-                ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
-                maintype, subtype = (ctype.split("/", 1) + ["octet-stream"])[:2]
-                part = MIMEBase(maintype, subtype)
+                part = MIMEBase("application", "octet-stream")
                 part.set_payload(content)
                 encoders.encode_base64(part)
-                part.add_header("Content-Disposition", "attachment",
-                                **{"filename*": encode_rfc2231(fname, "utf-8")})
+                encoded_filename = encode_rfc2231(fname, "utf-8")
+                part.add_header(
+                    "Content-Disposition", f"attachment; filename*={encoded_filename}"
+                )
                 attachments.append(part)
 
 
+        # ---- Outlook ----
         # ---- Outlook ----
         if provider == "outlook":
             acct = request.env["outlook.account"].sudo().browse(int(account_id))
@@ -742,6 +917,10 @@ class MailAPIController(http.Controller):
 
             def _send(token_use):
                 send_url = "https://graph.microsoft.com/v1.0/me/sendMail"
+
+                def _mk_rcpts(lst):
+                    return [{"emailAddress": {"address": a}} for a in _split_addr(lst)]
+
 
                 def _mk_rcpts(lst):
                     return [{"emailAddress": {"address": a}} for a in _split_addr(lst)]
@@ -761,24 +940,42 @@ class MailAPIController(http.Controller):
                     message["bccRecipients"] = _mk_rcpts(bcc_list)
 
                 if attachments or inlines:
+                }
+                to_list = _split_addr(to)
+                cc_list = _split_addr(cc)
+                bcc_list = _split_addr(bcc)
+                if to_list:
+                    message["toRecipients"] = _mk_rcpts(to_list)
+                if cc_list:
+                    message["ccRecipients"] = _mk_rcpts(cc_list)
+                if bcc_list:
+                    message["bccRecipients"] = _mk_rcpts(bcc_list)
+
+                if attachments or inlines:
                     message["attachments"] = []
                     # Outlook không hỗ trợ CID như Gmail trong payload đơn giản này,
                     # nên inline cũng gửi như file đính kèm (tuỳ nhu cầu có thể dùng MIME raw qua /sendMail?).
-                    for part in (attachments + inlines):
+                    for part in attachments + inlines:
                         file_content = part.get_payload(decode=True)
                         message["attachments"].append(
                             {
                                 "@odata.type": "#microsoft.graph.fileAttachment",
                                 "name": part.get_filename() or "file",
-                                "contentBytes": base64.b64encode(file_content).decode("utf-8"),
+                                "contentBytes": base64.b64encode(file_content).decode(
+                                    "utf-8"
+                                ),
                                 "contentType": part.get_content_type(),
+                                # Không set contentId/contentDisposition vì Graph API dạng fileAttachment
                                 # Không set contentId/contentDisposition vì Graph API dạng fileAttachment
                             }
                         )
                 payload = {"message": message, "saveToSentItems": "true"}
                 return requests.post(
                     send_url,
-                    headers={"Authorization": f"Bearer {token_use}", "Content-Type": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {token_use}",
+                        "Content-Type": "application/json",
+                    },
                     json=payload,
                 )
 
@@ -824,13 +1021,17 @@ class MailAPIController(http.Controller):
             else:
                 return request.make_json_response(
                     {"status": "error", "code": resp.status_code, "message": resp.text},
+                    {"status": "error", "code": resp.status_code, "message": resp.text},
                     status=200,
                 )
 
         # ---- Gmail ----
+        # ---- Gmail ----
         acct = request.env["gmail.account"].sudo().browse(int(account_id))
         if not acct.exists():
             return request.make_json_response(
+                {"status": "error", "message": "Invalid Gmail account"},
+                status=400,
                 {"status": "error", "message": "Invalid Gmail account"},
                 status=400,
             )
@@ -875,7 +1076,22 @@ class MailAPIController(http.Controller):
             root["Bcc"] = bcc
         root["From"] = sender_email
         root["Subject"] = subject
+        # ---- Xây MIME: mixed (attachments) + related (html + inline) ----
+        root = MIMEMultipart("mixed")
+        if _split_addr(to):
+            root["To"] = to
+        if _split_addr(cc):
+            root["Cc"] = cc
+        if _split_addr(bcc):
+            root["Bcc"] = bcc
+        root["From"] = sender_email
+        root["Subject"] = subject
         if message_id:
+            root["In-Reply-To"] = f"<{message_id}>"
+            root["References"] = f"<{message_id}>"
+
+        related = MIMEMultipart("related")
+        related.attach(MIMEText(body_html, "html"))
             root["In-Reply-To"] = f"<{message_id}>"
             root["References"] = f"<{message_id}>"
 
@@ -898,8 +1114,25 @@ class MailAPIController(http.Controller):
         _logger.debug("Full MIME message:\n%s", root.as_string())
 
         raw_str = base64.urlsafe_b64encode(root.as_bytes()).decode()
+        # gắn inline trước
+        for p in inlines:
+            related.attach(p)
+        root.attach(related)
+
+        # sau đó gắn file đính kèm
+        for p in attachments:
+            root.attach(p)
+
+        _logger.info("📤 [SEND_EMAIL] Gmail message format:")
+        _logger.info("From: %s", sender_email)
+        _logger.info("To: %s | Cc: %s | Bcc: %s", to, cc, bcc)
+        _logger.info("Subject: %s", subject)
+        _logger.debug("Full MIME message:\n%s", root.as_string())
+
+        raw_str = base64.urlsafe_b64encode(root.as_bytes()).decode()
 
         send_url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+        payload = {"raw": raw_str}
         payload = {"raw": raw_str}
         if thread_id:
             payload["threadId"] = thread_id
@@ -922,8 +1155,10 @@ class MailAPIController(http.Controller):
         if resp.status_code in (200, 202):
             gmail_id = resp.json().get("id")
             result = {"status": "success", "gmail_id": gmail_id}
+            result = {"status": "success", "gmail_id": gmail_id}
             _logger.info("✅ Gmail sent message id=%s", gmail_id)
         else:
+            result = {"status": "error", "code": resp.status_code, "message": resp.text}
             result = {"status": "error", "code": resp.status_code, "message": resp.text}
             _logger.error("❌ Gmail send error: %s", resp.text)
 
@@ -944,7 +1179,11 @@ class MailAPIController(http.Controller):
         to = (data.get("to") or "").strip()
         cc = (data.get("cc") or "").strip()
         bcc = (data.get("bcc") or "").strip()
+        to = (data.get("to") or "").strip()
+        cc = (data.get("cc") or "").strip()
+        bcc = (data.get("bcc") or "").strip()
         subject = data.get("subject", "")
+        body_html = data.get("body_html") or data.get("body", "")
         body_html = data.get("body_html") or data.get("body", "")
         thread_id = data.get("thread_id")
         message_id = data.get("message_id")
@@ -970,6 +1209,10 @@ class MailAPIController(http.Controller):
             refresh_token = acct.outlook_refresh_token
         else:
             token = acct.access_token
+
+        if provider == "gmail" and (
+            not token or (acct.token_expiry and acct.token_expiry < now)
+        ):
 
         if provider == "gmail" and (not token or (acct.token_expiry and acct.token_expiry < now)):
             _logger.info("🔄 [save_draft] Refreshing Gmail token")
@@ -1024,7 +1267,14 @@ class MailAPIController(http.Controller):
 
         if provider == "gmail":
             # set header To/Cc/Bcc vào draft
+            # set header To/Cc/Bcc vào draft
             mime_msg = MIMEMultipart()
+            if _split_addr(to):
+                mime_msg["to"] = to
+            if _split_addr(cc):
+                mime_msg["Cc"] = cc
+            if _split_addr(bcc):
+                mime_msg["Bcc"] = bcc
             if _split_addr(to):
                 mime_msg["to"] = to
             if _split_addr(cc):
@@ -1084,6 +1334,7 @@ class MailAPIController(http.Controller):
                 status=200,
             )
         else:
+
             def _request(tok):
                 url = "https://graph.microsoft.com/v1.0/me/messages"
                 method = requests.post
@@ -1094,7 +1345,10 @@ class MailAPIController(http.Controller):
                 def _mk_rcpts(lst):
                     return [{"emailAddress": {"address": a}} for a in _split_addr(lst)]
 
-                message = {"subject": subject, "body": {"contentType": "HTML", "content": body_html}}
+                message = {
+                    "subject": subject,
+                    "body": {"contentType": "HTML", "content": body_html},
+                }
                 if _split_addr(to):
                     message["toRecipients"] = _mk_rcpts(to)
                 if _split_addr(cc):
@@ -1103,7 +1357,10 @@ class MailAPIController(http.Controller):
                     message["bccRecipients"] = _mk_rcpts(bcc)
                 return method(
                     url,
-                    headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {tok}",
+                        "Content-Type": "application/json",
+                    },
                     json=message,
                 )
 
@@ -1111,7 +1368,9 @@ class MailAPIController(http.Controller):
                 resp = _request(token)
             except requests.exceptions.RequestException as req_err:
                 _logger.error("❌ [save_draft] Outlook request failed: %s", req_err)
-                return request.make_json_response({"status": "error", "message": str(req_err)}, status=500)
+                return request.make_json_response(
+                    {"status": "error", "message": str(req_err)}, status=500
+                )
             if resp.status_code == 401 and refresh_token:
                 cfg = request.env["outlook.mail.sync"].sudo().get_outlook_config()
                 tk_resp = requests.post(
@@ -1131,7 +1390,8 @@ class MailAPIController(http.Controller):
                     acct.write(
                         {
                             "outlook_access_token": token,
-                            "outlook_refresh_token": tk_j.get("refresh_token") or refresh_token,
+                            "outlook_refresh_token": tk_j.get("refresh_token")
+                            or refresh_token,
                         }
                     )
                     resp = _request(token)
@@ -1146,11 +1406,17 @@ class MailAPIController(http.Controller):
                     dr = resp.json()
                 except ValueError:
                     dr = {}
-                return request.make_json_response({"status": "success", "draft_id": dr.get("id", draft_id)})
+                return request.make_json_response(
+                    {"status": "success", "draft_id": dr.get("id", draft_id)}
+                )
             if resp.status_code == 403:
                 _logger.error("🚫 [save_draft] Outlook access denied: %s", resp.text)
-                acct.sudo().write({"outlook_access_token": False, "outlook_refresh_token": False})
-                return request.make_json_response({"status": "error", "code": 403, "message": resp.text}, status=200)
+                acct.sudo().write(
+                    {"outlook_access_token": False, "outlook_refresh_token": False}
+                )
+                return request.make_json_response(
+                    {"status": "error", "code": 403, "message": resp.text}, status=200
+                )
             return request.make_json_response(
                 {"status": "error", "code": resp.status_code, "message": resp.text},
                 status=200,
@@ -1173,18 +1439,28 @@ class MailAPIController(http.Controller):
         )
         if not account:
             return {"error": "Không tìm thấy tài khoản Gmail"}
-        return {"access_token": account.access_token, "email": account.email, "expires": str(account.token_expiry)}
+        return {
+            "access_token": account.access_token,
+            "email": account.email,
+            "expires": str(account.token_expiry),
+        }
 
     @http.route("/gmail/thread_detail", type="json", auth="user", csrf=False)
     def get_thread_detail(self, thread_id=None, account_id=None):
         if not thread_id:
             return {"status": "error", "message": "Missing thread_id"}
 
-        domain = [("message_type", "=", "email"), ("is_gmail", "=", True), ("thread_id", "=", thread_id)]
+        domain = [
+            ("message_type", "=", "email"),
+            ("is_gmail", "=", True),
+            ("thread_id", "=", thread_id),
+        ]
         if account_id:
             domain.append(("gmail_account_id", "=", int(account_id)))
 
-        messages = request.env["mail.message"].sudo().search(domain, order="date_received asc")
+        messages = (
+            request.env["mail.message"].sudo().search(domain, order="date_received asc")
+        )
 
         result = []
         for msg in messages:
@@ -1212,7 +1488,9 @@ class MailAPIController(http.Controller):
                     "receiver": msg.email_receiver or "",
                     "cc": msg.email_cc or "",
                     "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
+                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
+                        if msg.date_received
+                        else ""
                     ),
                     "body": msg.body,
                     "attachments": attachment_list,
@@ -1234,88 +1512,140 @@ class MailAPIController(http.Controller):
         limit = int(kwargs.get("limit", 15))
         offset = (page - 1) * limit
 
-        domain = [("message_type", "=", "email"), ("is_gmail", "=", True)]
-        if account_id:
-            domain.append(("gmail_account_id", "=", int(account_id)))
+        account = request.env["gmail.account"].sudo().browse(int(account_id))
+        if not account.exists():
+            return {"messages": [], "total": 0}
+
+        # Build Gmail API query string
+        q = []
         if kwargs.get("from"):
-            domain.append(("email_sender", "ilike", kwargs["from"]))
+            q.append(f'from:{kwargs["from"]}')
         if kwargs.get("to"):
-            domain.append(("email_receiver", "ilike", kwargs["to"]))
+            q.append(f'to:{kwargs["to"]}')
         if kwargs.get("subject"):
-            domain.append(("subject", "ilike", kwargs["subject"]))
+            q.append(f'subject:{kwargs["subject"]}')
         if kwargs.get("hasWords"):
-            domain.append(("body", "ilike", kwargs["hasWords"]))
+            q.append(kwargs["hasWords"])
         if kwargs.get("doesntHave"):
-            domain.append(("body", "not ilike", kwargs["doesntHave"]))
+            q.append(f'-{kwargs["doesntHave"]}')
         if kwargs.get("hasAttachment"):
-            domain.append(("attachment_ids", "!=", False))
+            q.append("has:attachment")
+        if kwargs.get("dateWithin"):
+            if kwargs["dateWithin"] == "1 day":
+                q.append("newer_than:1d")
+            elif kwargs["dateWithin"] == "1 week":
+                q.append("newer_than:7d")
+            elif kwargs["dateWithin"] == "1 month":
+                q.append("newer_than:30d")
+        if kwargs.get("dateValue"):
+            q.append(f'before:{kwargs["dateValue"].replace("-", "/")}')
         if kwargs.get("searchIn") and kwargs["searchIn"] != "all":
             if kwargs["searchIn"] == "inbox":
-                domain.append(("is_sent_mail", "=", False))
+                q.append("in:inbox")
             elif kwargs["searchIn"] == "sent":
-                domain.append(("is_sent_mail", "=", True))
+                q.append("in:sent")
             elif kwargs["searchIn"] == "drafts":
-                domain.append(("is_draft_mail", "=", True))
+                q.append("in:drafts")
             elif kwargs["searchIn"] == "spam":
-                domain.append(("is_spam", "=", True))
-        if kwargs.get("dateValue"):
-            domain.append(("date_received", "<=", kwargs["dateValue"] + " 23:59:59"))
-        if kwargs.get("dateWithin"):
-            from datetime import timedelta as _td
-            now = fields.Datetime.now()
-            if kwargs["dateWithin"] == "1 day":
-                start = now - _td(days=1)
-            elif kwargs["dateWithin"] == "1 week":
-                start = now - _td(weeks=1)
-            elif kwargs["dateWithin"] == "1 month":
-                start = now - _td(days=30)
+                q.append("in:spam")
+        query_str = " ".join(q).strip()
+
+        headers = {"Authorization": f"Bearer {account.access_token}"}
+        params = {
+            "q": query_str,
+            "maxResults": limit,
+        }
+        url = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+
+        messages = []
+        total = 0
+        page_token = None
+        page_num = 1
+        while True:
+            if page_token:
+                params["pageToken"] = page_token
             else:
-                start = None
-            if start:
-                domain.append(("date_received", ">=", fields.Datetime.to_string(start)))
-
-        total = request.env["mail.message"].sudo().search_count(domain)
-        messages = (
-            request.env["mail.message"]
-            .sudo()
-            .search(domain, order="date_received desc", limit=limit, offset=offset)
-        )
-
-        result = []
-        for msg in messages:
-            attachments = (
-                request.env["ir.attachment"]
-                .sudo()
-                .search([("res_model", "=", "mail.message"), ("res_id", "=", msg.id)])
+                params.pop("pageToken", None)
+            _logger.info(
+                f"🔎 [GMAIL SEARCH] Fetching page {page_num} with params: {params}"
             )
-            attachment_list = [
-                {
-                    "id": att.id,
-                    "name": att.name,
-                    "url": f"/web/content/{att.id}",
-                    "download_url": f"/web/content/{att.id}?download=true",
-                    "mimetype": att.mimetype,
-                }
-                for att in attachments
-            ]
+            resp = requests.get(url, headers=headers, params=params)
+            if resp.status_code != 200:
+                _logger.error(
+                    f"❌ [GMAIL SEARCH] Gmail API error page {page_num}: {resp.text}"
+                )
+                break
 
-            result.append(
-                {
-                    "id": msg.id,
-                    "subject": msg.subject or "No Subject",
-                    "sender": msg.email_sender or "Unknown Sender",
-                    "to": msg.email_receiver or "",
-                    "receiver": msg.email_receiver or "",
-                    "date_received": (
-                        msg.date_received.strftime("%Y-%m-%d %H:%M:%S") if msg.date_received else ""
-                    ),
-                    "body": msg.body,
-                    "attachments": attachment_list,
-                    "thread_id": msg.thread_id or "",
-                    "message_id": msg.message_id or "",
-                    "is_read": msg.is_read,
-                    "is_starred_mail": msg.is_starred_mail,
-                }
+            data = resp.json()
+            if page_num == 1:
+                total = data.get("resultSizeEstimate", 0)
+            message_ids = [m["id"] for m in data.get("messages", [])]
+            _logger.info(
+                f"🔎 [GMAIL SEARCH] Page {page_num} got {len(message_ids)} messages"
             )
 
-        return {"messages": result, "total": total}
+            for gmail_id in message_ids:
+                detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmail_id}?format=full"
+                detail_resp = requests.get(detail_url, headers=headers)
+                if detail_resp.status_code != 200:
+                    _logger.warning(
+                        f"⚠️ [GMAIL SEARCH] Failed to fetch detail for {gmail_id}"
+                    )
+                    continue
+                msg_data = detail_resp.json()
+                payload = msg_data.get("payload", {})
+
+                def extract_header(payload, header_name):
+                    for h in payload.get("headers", []):
+                        if h.get("name", "").lower() == header_name.lower():
+                            return h.get("value", "")
+                    return ""
+
+                subject = extract_header(payload, "Subject") or "No Subject"
+                sender = extract_header(payload, "From")
+                receiver = extract_header(payload, "To")
+                cc = extract_header(payload, "Cc")
+                date_received = extract_header(payload, "Date")
+                thread_id = msg_data.get("threadId", "")
+                message_id = extract_header(payload, "Message-Id")
+
+                def extract_body(payload):
+                    if payload.get("mimeType") == "text/html" and payload.get(
+                        "body", {}
+                    ).get("data"):
+                        import base64
+
+                        return base64.urlsafe_b64decode(
+                            payload["body"]["data"] + "=="
+                        ).decode("utf-8", errors="ignore")
+                    for part in payload.get("parts", []):
+                        body = extract_body(part)
+                        if body:
+                            return body
+                    return ""
+
+                body = extract_body(payload)
+                messages.append(
+                    {
+                        "id": gmail_id,
+                        "subject": subject,
+                        "sender": sender,
+                        "to": receiver,
+                        "receiver": receiver,
+                        "cc": cc,
+                        "date_received": date_received,
+                        "body": body,
+                        "attachments": [],
+                        "thread_id": thread_id,
+                        "message_id": message_id,
+                        "is_read": False,
+                        "is_starred_mail": False,
+                    }
+                )
+
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                _logger.info(f"🔎 [GMAIL SEARCH] No more pages after page {page_num}")
+                break
+            page_num += 1
+        return {"messages": messages, "total": total}
