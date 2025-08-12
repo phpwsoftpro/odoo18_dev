@@ -516,15 +516,16 @@ export default xml`
                                                     </div>
                                             </div>
                                         </div>
-                                    <div class="message-body">
+
                                         <div class="message-content">
                                             
                                             <t t-raw="threadMsg.body"/>
                                         </div>
-                                        <t t-if="threadMsg.attachments && threadMsg.attachments.length">
+                                        
+                                        <t t-if="(threadMsg.attachments || []).length &gt; 0">
                                             <div class="attachments">
                                                 <div class="attachments-title">
-                                                <t t-esc="threadMsg.attachments.length"/> attachment<t t-if="threadMsg.attachments.length > 1">s</t>
+                                                <t t-esc="threadMsg.attachments.length"/> attachment<t t-if="threadMsg.attachments.length &gt; 1">s</t>
                                                 </div>
 
                                                 <div class="attachments-grid">
@@ -553,7 +554,7 @@ export default xml`
                                                 </t>
                                                 </div>
                                             </div>
-                                            </t>
+                                        </t>
                                     </div>
                                 </t>
                             </div>
