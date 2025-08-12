@@ -20,9 +20,10 @@ class GmailConfig(models.Model):
             "token_uri": "https://oauth2.googleapis.com/token",
             # "redirect_uri": "http://localhost:8070/odoo/gmail/auth/callback",
             # "redirect_uri": "https://crm2.wsoftpro.com/odoo/gmail/auth/callback",
-
             "redirect_uri": "https://silver-carnival-rqr9pv74r5pf95w-8069.app.github.dev/odoo/gmail/auth/callback",
             "client_id": "934598997197-13d2tluslcltooi7253r1s1rkafj601h.apps.googleusercontent.com",
             "client_secret": "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",
+            
+            
 
         }
