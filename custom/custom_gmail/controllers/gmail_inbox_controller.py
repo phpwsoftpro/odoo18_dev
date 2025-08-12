@@ -697,7 +697,6 @@ class MailAPIController(http.Controller):
             content = fs.read()
             fs.seek(0)
             fname = fs.filename or "file"
-
             # inline ?
             if fname in inline_map:
                 im = inline_map[fname]
@@ -772,7 +771,6 @@ class MailAPIController(http.Controller):
                                 # Không set contentId/contentDisposition vì Graph API dạng fileAttachment
                             }
                         )
-
                 payload = {"message": message, "saveToSentItems": "true"}
                 return requests.post(
                     send_url,
