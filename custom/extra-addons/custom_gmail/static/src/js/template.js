@@ -533,7 +533,55 @@ export default xml`
                                             
                                             <t t-raw="threadMsg.body"/>
                                         </div>
+                                        <style>
+                                        .attachments { margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
+                                        .attachments-title { font-size: 13px; font-weight: 500; color: #555; margin-bottom: 8px; }
+                                        .attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+                                        .attachment-card { position: relative; border: 1px solid #e6e8eb; border-radius: 10px; background: #fff; padding: 10px; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; display: flex; flex-direction: column; min-height: 140px; }
+                                        .attachment-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.08); transform: translateY(-1px); border-color: #d8dbe0; }
+                                        .attachment-card.image .attachment-thumb { display: block; width: 100%; max-width: 160px; height: auto; max-height: 120px; object-fit: cover; border-radius: 8px; margin: 0 auto 8px auto; background: #f6f7f9; }
+                                        .file-icon { font-size: 28px; color: #6b7280; margin-bottom: 6px; }
+                                        .file-meta { display: flex; flex-direction: column; gap: 2px; }
+                                        .file-meta .file-name { font-size: 13px; font-weight: 600; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                                        .file-meta .file-size { font-size: 12px; color: #6b7280; }
+                                        .attachment-actions { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+                                        .attachment-actions .btn { display: inline-flex; align-items: center; border: 1px solid #e5e7eb; background: #fafafa; color: #374151; font-size: 12px; padding: 3px 8px; border-radius: 5px; text-decoration: none; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+                                        .attachment-actions .btn:hover { background: #f3f4f6; border-color: #e0e2e7; }
+                                        .attachment-actions .btn:active { transform: translateY(1px); }
+                                        </style>
+                                        <t t-if="(threadMsg.attachments || []).length &gt; 0">
+                                            <div class="attachments">
+                                                <div class="attachments-title">
+                                                <t t-esc="threadMsg.attachments.length"/> attachment<t t-if="threadMsg.attachments.length &gt; 1">s</t>
+                                                </div>
 
+                                                <div class="attachments-grid">
+                                                <t t-foreach="threadMsg.attachments" t-as="att" t-key="att.id">
+                                                    <div class="attachment-card" t-att-class="this.isImage(att.mimetype) ? 'image' : 'file'">
+                                                    <!-- Ảnh xem trước -->
+                                                    <t t-if="this.isImage(att.mimetype)">
+                                                        <a t-att-href="att.url" target="_blank" rel="noopener">
+                                                        <img t-att-src="att.url" alt="preview" class="attachment-thumb"/>
+                                                        </a>
+                                                    </t>
+                                                    <!-- File thường -->
+                                                    <t t-else="">
+                                                        <div class="file-icon"><i t-att-class="this.iconByMime(att)"></i></div>
+                                                        <div class="file-meta">
+                                                        <div class="file-name" t-att-title="att.name"><t t-esc="att.name"/></div>
+                                                        <div class="file-size">mimetype: <t t-esc="att.mimetype || 'unknown'"/></div>
+                                                        </div>
+                                                    </t>
+
+                                                    <div class="attachment-actions">
+                                                        <a class="btn btn-xs" t-att-href="att.url" target="_blank" rel="noopener">Open</a>
+                                                        <a class="btn btn-xs" t-att-href="att.download_url || (att.url + '&amp;download=true')">Download</a>
+                                                    </div>
+                                                    </div>
+                                                </t>
+                                                </div>
+                                            </div>
+                                        </t>
                                     </div>
                                 </t>
                             </div>
@@ -662,6 +710,27 @@ export default xml`
                         </li>
                     </t>
                 </ul>
+                <div class="email-signature" style="margin-top:16px; padding-top:12px; border-top:1px solid #ddd;">
+                    <table style="border:none; font-family:Arial, sans-serif; font-size:14px;">
+                        <tr>
+                        <td style="padding-right:12px; vertical-align:top;">
+                            <img src="https://example.com/signature-avatar.png"
+                                alt="Signature Avatar"
+                                style="width:90px; height:90px; border-radius:50%; object-fit:cover;" />
+                        </td>
+                        <td style="vertical-align:top; line-height:1.4;">
+                            <div style="font-weight:bold; font-size:16px; color:#000;">Vanessa Ha</div>
+                            <div style="color:#555;">Project Manager</div>
+                            <div style="font-weight:bold; color:#000;">WSOFTPRO</div>
+                            <hr style="border:none; border-top:1px solid #ccc; margin:8px 0;" />
+                            <div>📞 (+84) 393 558 941</div>
+                            <div>✉️ vanessa@wsoftpro.com</div>
+                            <div>🌐 <a href="https://wsoftpro.com/" target="_blank" style="color:#0066cc;">https://wsoftpro.com/</a></div>
+                            <div>📍 7/26 Nguyen Hong, Dong Da, Hanoi, Vietnam</div>
+                        </td>
+                        </tr>
+                    </table>
+                    </div>
             </div>
         </div>
 

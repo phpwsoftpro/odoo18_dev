@@ -1,4 +1,28 @@
 /** @odoo-module **/
+
+// true nếu là ảnh => show thumbnail
+export function isImage(mimetype) {
+    return typeof mimetype === 'string' && mimetype.startsWith('image/');
+}
+
+// chọn icon theo mimetype/tên file
+export function iconByMime(att) {
+    const mt = (att?.mimetype || '').toLowerCase();
+    const name = (att?.name || '').toLowerCase();
+
+    if (mt.includes('pdf') || name.endsWith('.pdf')) return 'fa fa-file-pdf-o';
+    if (mt.includes('zip') || mt.includes('compressed') || /\.(zip|rar|7z|tar|gz)$/.test(name)) return 'fa fa-file-archive-o';
+    if (mt.includes('word') || /\.(doc|docx)$/.test(name)) return 'fa fa-file-word-o';
+    if (mt.includes('excel') || /\.(xls|xlsx|csv)$/.test(name)) return 'fa fa-file-excel-o';
+    if (mt.includes('powerpoint') || /\.(ppt|pptx)$/.test(name)) return 'fa fa-file-powerpoint-o';
+    if (mt.includes('json') || name.endsWith('.json')) return 'fa fa-file-code-o';
+    if (mt.startsWith('text/') || name.endsWith('.txt')) return 'fa fa-file-text-o';
+    if (mt.startsWith('audio/')) return 'fa fa-file-audio-o';
+    if (mt.startsWith('video/')) return 'fa fa-file-video-o';
+    if (isImage(mt)) return 'fa fa-file-image-o';
+    return 'fa fa-file-o';
+}
+
 export function toggleMessageDropdown(msg) {
     // Đóng tất cả các dropdown khác
     this.state.currentThread.forEach(m => {
