@@ -1,48 +1,39 @@
 /** @odoo-module **/
 import { fillComposeForm } from "./fillComposeForm";
 
-export function openComposeModal(mode, msg = null) {
-    if (!msg) return;
-
-    if (this.state.showComposeModal) {
-        this.state.showComposeModal = false;
-        setTimeout(() => {
-            openComposeModalInternal.call(this, mode, msg);
-        }, 50);
-    } else {
-        openComposeModalInternal.call(this, mode, msg);
-    }
+export function openComposeModal(mode, payload = {}) {
+  if (this.state.showComposeModal) {
+    this.state.showComposeModal = false;
+    setTimeout(() => openComposeModalInternal.call(this, mode, payload), 50);
+  } else {
+    openComposeModalInternal.call(this, mode, payload);
+  }
 }
 
-async function openComposeModalInternal(mode, msg) {
-    this.state.composeMode = mode;
-    this.state.showComposeModal = true;
+async function openComposeModalInternal(mode, data = {}) {
+  this.state.composeMode = mode;
+  this.state.showComposeModal = true;
 
-    this.state.composeData = {
-        thread_id: msg.thread_id || null,
-        message_id: msg.message_id || null,
-        original_sender: msg.sender || "",
-        draft_id: msg.draft_id || null,
-        attachments: msg.attachments || [],
-        isSaving: false,
-    };
+  this.state.composeData = {
+    thread_id: data.thread_id ?? null,
+    message_id: data.message_id ?? null,
+    draft_id: data.draft_id ?? null,
+    original_sender: data.original_sender || "",
+    attachments: Array.isArray(data.attachments) ? data.attachments : [],
+    isSaving: false,
+  };
 
-    const modalTitle = document.querySelector(".compose-modal-header h3");
-    if (modalTitle) {
-        modalTitle.textContent = mode === "forward" ? "Forward" : "New Message";
-    }
+  const titleEl = document.querySelector(".compose-modal-header h3");
+  if (titleEl) titleEl.textContent = mode === "reply" ? "Reply" : mode === "forward" ? "Forward" : "New Message";
 
-    setTimeout(async () => {
-        this.editorInstance = await this.initCKEditor();
-
-        const subject = mode === "forward" ? `Fwd: ${msg.subject}` : msg.subject;
-
-        fillComposeForm({
-            to: "",
-            cc: "",
-            bcc: "",
-            subject: subject,
-            body: msg.body || "",
-        }, this.editorInstance);
-    }, 100);
+  setTimeout(async () => {
+    this.editorInstance = await this.initCKEditor();
+    fillComposeForm({
+      to:      data.to      || "",
+      cc:      data.cc      || "",
+      bcc:     data.bcc     || "",
+      subject: data.subject || "",
+      body:    data.body    || "",
+    }, this.editorInstance);
+  }, 100);
 }
