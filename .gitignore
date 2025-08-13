@@ -163,4 +163,4 @@ cython_debug/
 custom/.vscode
 sync.ipynb
 docker-compose.yml
-gmail_config.py
+/gmail_config.py
