@@ -169,7 +169,6 @@ class GmailInboxController(http.Controller):
                     "is_read": msg.is_read,
                     "is_starred_mail": msg.is_starred_mail,
                     "avatar_url": msg.avatar_url,
-
                 }
             )
 
@@ -297,7 +296,6 @@ class GmailInboxController(http.Controller):
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
                     "avatar_url": msg.avatar_url,
-
                 }
             )
 
@@ -683,6 +681,69 @@ class GmailInboxController(http.Controller):
             return {"status": "ok", "id": id, "starred": starred}
         else:
             return {"status": "not_found", "id": id}
+    
+    @http.route('/gmail/delete_message', type='json', auth='user', csrf=False)
+    def delete_message(self, message_id=None, **kw):
+        # --- Validate và chuẩn hóa ID ---
+        if not message_id:
+            return {"success": False, "error": "No message_id provided"}
+        ids = isinstance(message_id, list) and message_id or [message_id]
+        try:
+            ids = [int(x) for x in ids]
+        except ValueError:
+            return {"success": False, "error": "Invalid message_id"}
+
+        # --- Xử lý từng thư ---
+        for mid in ids:
+            msg = request.env['mail.message'].sudo().browse(mid)
+            if not msg.exists() or not msg.gmail_id:
+                continue
+
+            acct = msg.gmail_account_id.sudo()
+            # Refresh token nếu hết hạn
+            now = fields.Datetime.now()
+            if acct.token_expiry and acct.token_expiry < now:
+                acct.refresh_access_token()
+
+            token = acct.access_token
+            trash_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg.gmail_id}/trash"
+            try:
+                resp = requests.post(
+                    trash_url,
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+            except Exception as e:
+                _logger.error("HTTP request failed: %s", e)
+                return {"success": False, "error": str(e)}
+
+            if resp.status_code == 401:
+                # Nếu 401, thử refresh lần nữa và retry
+                acct.refresh_access_token()
+                token = acct.access_token
+                resp = requests.post(
+                    trash_url,
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+
+            if resp.status_code != 200:
+                _logger.error("Gmail trash failed %s: %s", resp.status_code, resp.text)
+                return {"success": False, "error": f"Gmail trash HTTP {resp.status_code}"}
+
+            _logger.info("Moved Gmail ID %s to Trash (HTTP)", msg.gmail_id)
+
+            # Xóa attachments & notification
+            request.env['ir.attachment'].sudo().search([
+                ('res_model', '=', 'mail.message'),
+                ('res_id', '=', msg.id),
+            ]).unlink()
+            request.env['mail.notification'].sudo().search([
+                ('mail_message_id', '=', msg.id),
+            ]).unlink()
+
+            # Xóa record Odoo
+            msg.unlink()
+
+        return {"success": True, "deleted_ids": ids}
 
 
 class UploadController(http.Controller):
@@ -799,7 +860,6 @@ class MailAPIController(http.Controller):
                 part.add_header(
                     "Content-Disposition",
                     "inline",
-                               
                     **{"filename*": encode_rfc2231(fname, "utf-8")},
                 )
                 inlines.append(part)
@@ -810,10 +870,12 @@ class MailAPIController(http.Controller):
                 part = MIMEBase(maintype, subtype)
                 part.set_payload(content)
                 encoders.encode_base64(part)
-                part.add_header("Content-Disposition", "attachment",
-                                **{"filename*": encode_rfc2231(fname, "utf-8")})
+                part.add_header(
+                    "Content-Disposition",
+                    "attachment",
+                    **{"filename*": encode_rfc2231(fname, "utf-8")},
+                )
                 attachments.append(part)
-
 
         # ---- Outlook ----
         if provider == "outlook":
@@ -939,8 +1001,9 @@ class MailAPIController(http.Controller):
                     "client_secret": config["client_secret"],
                     "refresh_token": acct.refresh_token,
                     "grant_type": "refresh_token",
-                },
+                }
             )
+
             resp.raise_for_status()
             tok = resp.json()
             token = tok.get("access_token")

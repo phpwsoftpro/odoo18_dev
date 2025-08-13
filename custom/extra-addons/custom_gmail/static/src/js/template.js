@@ -13,8 +13,20 @@ export default xml`
             <span class="gmail-logo-text">Gmail</span>
         </div>
         <div class="gmail-search">
-            <input type="text" placeholder="Search mail" />
+            <input type="text" placeholder="Search mail"
+                t-model="state.searchBarValue"
+                readonly="true"
+                style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 40px;"
+                t-on-click="toggleSearchPopup"
+            />
+            <t t-if="state.searchBarValue">
+                <button class="clear-search-btn" t-on-click="clearSearchFilter"
+                    style="position:absolute;right:30px;top:5px;background:none;border:none;cursor:pointer;">
+                    <i class="fa fa-times"></i>
+                </button>
+            </t>
             <button class="search-advanced-btn gmail-advanced-icon" t-on-click="toggleSearchPopup">
+
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <g stroke="#444" stroke-width="2" stroke-linecap="round">
                 <line x1="7" y1="7" x2="17" y2="7"/>
@@ -465,11 +477,11 @@ export default xml`
 
 
 
-                                                <button class="icon-btn reply" aria-label="Phản hồi" t-on-click="(ev) => this.onReply(ev, threadMsg)">
+                                                <button class="icon-btn reply" title="Trả lời" aria-label="Phản hồi" t-on-click="(ev) => this.onReply(ev, threadMsg)">
                                                     <i class="fa fa-reply"></i>
                                                 </button>
 
-                                                <button class="icon-btn reply-all" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
+                                                <button class="icon-btn reply-all" title="Trả lời tất cả" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
                                                     <i class="fa fa-reply-all"></i>
                                                 </button>
 
@@ -479,7 +491,7 @@ export default xml`
                                                     <i class="fa fa-magic"></i> Phân tích
                                                 </button>
 
-                                                <button class="icon-btn forward" aria-label="Chuyển tiếp" t-on-click="(ev) => this.onForward(ev, state.selectedMessage)">
+                                                <button class="icon-btn forward" title="Chuyển tiếp" aria-label="Chuyển tiếp" t-on-click="(ev) => this.onForward(ev, state.selectedMessage)">
                                                     <i class="fa fa-share"></i>
                                                 </button>
 
@@ -509,7 +521,7 @@ export default xml`
                                                             <li class="dropdown-item" t-on-click="() => window.print()">
                                                                 <i class="fa fa-print" style="margin-right: 8px;"></i> Print
                                                             </li>
-                                                            <li class="dropdown-item" t-on-click="() => this.onDeleteMessage(threadMsg)">
+                                                            <li class="dropdown-item" t-on-click="(ev) => this.onDeleteMessage(ev, threadMsg)">
                                                                 <i class="fa fa-trash" style="margin-right: 8px;"></i> Delete this message
                                                             </li>
                                                         </ul>
