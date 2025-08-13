@@ -710,6 +710,27 @@ export default xml`
                         </li>
                     </t>
                 </ul>
+                <div class="email-signature" style="margin-top:16px; padding-top:12px; border-top:1px solid #ddd;">
+                    <table style="border:none; font-family:Arial, sans-serif; font-size:14px;">
+                        <tr>
+                        <td style="padding-right:12px; vertical-align:top;">
+                            <img src="https://example.com/signature-avatar.png"
+                                alt="Signature Avatar"
+                                style="width:90px; height:90px; border-radius:50%; object-fit:cover;" />
+                        </td>
+                        <td style="vertical-align:top; line-height:1.4;">
+                            <div style="font-weight:bold; font-size:16px; color:#000;">Vanessa Ha</div>
+                            <div style="color:#555;">Project Manager</div>
+                            <div style="font-weight:bold; color:#000;">WSOFTPRO</div>
+                            <hr style="border:none; border-top:1px solid #ccc; margin:8px 0;" />
+                            <div>📞 (+84) 393 558 941</div>
+                            <div>✉️ vanessa@wsoftpro.com</div>
+                            <div>🌐 <a href="https://wsoftpro.com/" target="_blank" style="color:#0066cc;">https://wsoftpro.com/</a></div>
+                            <div>📍 7/26 Nguyen Hong, Dong Da, Hanoi, Vietnam</div>
+                        </td>
+                        </tr>
+                    </table>
+                    </div>
             </div>
         </div>
 
