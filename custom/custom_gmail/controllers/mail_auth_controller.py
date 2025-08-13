@@ -22,7 +22,8 @@ class MailAuthController(http.Controller):
                 "openid email "
                 "https://www.googleapis.com/auth/gmail.readonly "
                 "https://www.googleapis.com/auth/gmail.send "
-                "https://www.googleapis.com/auth/gmail.compose"
+                "https://www.googleapis.com/auth/gmail.compose "
+                "https://www.googleapis.com/auth/gmail.modify"
             )
             params = {
                 "client_id": config["client_id"],
