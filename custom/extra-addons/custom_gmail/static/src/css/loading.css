@@ -127,3 +127,8 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     border-color: #c8c8c8;
 }
+.gmail-search input[readonly] {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -1,17 +1,33 @@
 /** @odoo-module **/
 
+function extractEmail(raw = "") {
+  const s = String(raw).trim();
+  const m = s.match(/<([^>]+)>/);
+  return (m && m[1]) ? m[1].trim() : s.split(/[;,]/)[0].trim();
+}
 
-export function onReply(ev, selectedMessage) {
-    ev.stopPropagation();
+function makeReplySubject(subject = "") {
+  const base = String(subject).replace(/^\s*(re|fwd):\s*/gi, "");
+  return `Re: ${base}`;
+}
 
-    if (!selectedMessage || !selectedMessage.thread_id) {
-        console.warn("❌ selectedMessage hoặc thread_id không hợp lệ:", selectedMessage);
-        return;
-    }
+// Reply: chỉ To + Subject, body trống
+export function onReply(ev, msg) {
+  ev?.preventDefault?.();
+  ev?.stopPropagation?.();
 
-    this.openComposeModal("reply", {
-        ...selectedMessage,
-        thread_id: selectedMessage.thread_id,
-        message_id: selectedMessage.message_id,
-    });
+  const fromRaw   = msg.from || msg.sender || msg.from_email || msg.email_from || "";
+  const fromEmail = extractEmail(fromRaw);
+
+  this.openComposeModal("reply", {
+    to: fromEmail || "",
+    cc: "",
+    bcc: "",
+    subject: makeReplySubject(msg.subject || ""),
+    body: "",
+    attachments: [],
+    thread_id: msg.thread_id || null,
+    message_id: msg.message_id || null,
+    is_reply: true,
+  });
 }

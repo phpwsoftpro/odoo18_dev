@@ -1,9 +1,9 @@
 /** @odoo-module **/
-import { Component, markup, onMounted } from "@odoo/owl";
+import { Component, markup, onMounted, useEffect } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { initCKEditor, loadCKEditor } from "./ckeditor";
-import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, toggleStar } from "./functions/index";
+import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, onDeleteMessage, toggleStar } from "./functions/index";
 import { openComposeModal } from "./functions/openComposeModal";
 import { initialState } from "./state";
 import { loadStarredState, saveStarredState } from "./storageUtils";
@@ -121,6 +121,7 @@ export class GmailInbox extends Component {
         this.onReply = onReply.bind(this);
         this.onReplyAll = onReplyAll.bind(this);
         this.onForward = onForward.bind(this);
+        this.onDeleteMessage = onDeleteMessage.bind(this);
         this.toggleDropdown = toggleDropdown.bind(this);
         this.toggleDropdownVertical = toggleDropdownVertical.bind(this);
         this.toggleAccounts = toggleAccounts.bind(this);
@@ -151,7 +152,7 @@ export class GmailInbox extends Component {
         this.state.popupMessage = null;
         this.onAnalyze = onAnalyze.bind(this);
         this.state.messagesByEmail = {};
-        //  logic gốc để các nút "Gắn sao", "Đã gửi", "Thư nháp" hoạt động đúng
+        this.state.searchBarValue = "";
         this.switchFolder = this._switchFolder.bind(this);
 
         // Logic toggle sidebar "Hiện thêm"
@@ -175,6 +176,58 @@ export class GmailInbox extends Component {
             this.state.showAdvancedSearch = !this.state.showAdvancedSearch;
             this.render();  // Re-render to reflect the state change
         };
+        // ===== Build chuỗi query theo style Gmail
+        this.buildSearchQueryString = (q) => {
+            const parts = [];
+            if (q.from) parts.push(`from:(${q.from})`);
+            if (q.to) parts.push(`to:(${q.to})`);
+            if (q.subject) parts.push(`subject:(${q.subject})`);
+            if (q.hasWords) parts.push(q.hasWords);
+            if (q.doesntHave) parts.push(`-${q.doesntHave}`);
+
+            // size: Gmail dùng larger/smaller
+            if (q.sizeValue) {
+                const op = q.sizeOperator === "greater" ? "larger" : "smaller";
+                parts.push(`${op}:${q.sizeValue}${(q.sizeUnit || "MB").toUpperCase()}`);
+            }
+
+            // date
+            if (q.dateValue) parts.push(`before:${q.dateValue.replace(/-/g, "/")}`);
+            if (q.dateWithin && q.dateWithin !== "1 day") {
+                if (q.dateWithin === "1 week") parts.push("newer_than:7d");
+                if (q.dateWithin === "1 month") parts.push("newer_than:30d");
+            }
+
+            // in:
+            if (q.searchIn && q.searchIn !== "all") parts.push(`in:${q.searchIn}`);
+
+            if (q.hasAttachment) parts.push("has:attachment");
+            if (q.excludeChats) parts.push("-in:chats");
+            return parts.join(" ").trim();
+        };
+
+        // ===== Tự động cập nhật preview mỗi khi user nhập trong popup (vì template dùng t-model)
+        useEffect(
+            () => {
+                this.state.searchBarValue = this.buildSearchQueryString(this.state.searchQuery);
+            },
+            () => [
+                this.state.searchQuery.from,
+                this.state.searchQuery.to,
+                this.state.searchQuery.subject,
+                this.state.searchQuery.hasWords,
+                this.state.searchQuery.doesntHave,
+                this.state.searchQuery.sizeOperator,
+                this.state.searchQuery.sizeValue,
+                this.state.searchQuery.sizeUnit,
+                this.state.searchQuery.dateWithin,
+                this.state.searchQuery.dateValue,
+                this.state.searchQuery.searchIn,
+                this.state.searchQuery.hasAttachment,
+                this.state.searchQuery.excludeChats,
+            ],
+        );
+
 
         // Example search query state
         this.state.searchQuery = {
@@ -192,6 +245,7 @@ export class GmailInbox extends Component {
             hasAttachment: false,
             excludeChats: false,
         };
+
         this.toggleSearchPopup = () => {
             this.state.showSearchPopup = !this.state.showSearchPopup;
             this.render();
@@ -261,6 +315,26 @@ export class GmailInbox extends Component {
             } else {
                 this.state.messages = [];
             }
+            this.render();
+        };
+        this.clearSearchFilter = () => {
+        this.state.searchQuery = {
+            from: '',
+            to: '',
+            subject: '',
+            hasWords: '',
+            doesntHave: '',
+            sizeOperator: 'greater',
+            sizeValue: '',
+            sizeUnit: 'MB',
+            dateWithin: '1 day',
+            dateValue: '',
+            searchIn: 'all',
+            hasAttachment: false,
+            excludeChats: false,
+        };
+            this.state.searchBarValue = "";
+            this.state.messages = [];
             this.render();
         };
         this._onClickOutsideVertical = (event) => {
