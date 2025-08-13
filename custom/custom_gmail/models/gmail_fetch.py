@@ -323,6 +323,7 @@ class GmailFetch(models.Model):
                 receiver = extract_header(payload, "To")
                 cc = extract_header(payload, "Cc")
                 raw_date = extract_header(payload, "Date")
+                bcc = extract_header(payload, "Bcc")
                 try:
                     dt = parser.parse(raw_date)
                     user_tz = pytz.timezone(account.user_id.tz or "UTC")
@@ -378,6 +379,7 @@ class GmailFetch(models.Model):
                                 "email_sender": sender,
                                 "email_receiver": receiver,
                                 "email_cc": cc,
+                                "email_bcc": bcc,
                                 "thread_id": msg.get("threadId"),
                                 "message_id": message_id,
                                 # "gmail_labels": ",".join(label_ids),

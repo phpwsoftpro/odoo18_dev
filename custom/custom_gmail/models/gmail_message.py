@@ -28,6 +28,7 @@ class GmailMessage(models.Model):
     email_sender = fields.Char(string="Email Sender")
     email_receiver = fields.Char(string="Email Receiver")
     email_cc = fields.Char(string="Email CC")
+    email_bcc = fields.Char(string="BCC")
     last_fetched_email_id = fields.Char(string="Last Fetched Email ID")
     thread_id = fields.Char(string="Thread ID")
     message_id = fields.Char(string="Message ID")
@@ -42,7 +43,7 @@ class GmailMessage(models.Model):
     _sql_constraints = [
         ("unique_gmail_id", "unique(gmail_id)", "Gmail ID must be unique!")
     ]
-    
+
     @api.depends("email_sender", "is_sent_mail", "is_draft_mail", "gmail_account_id")
     def _compute_avatar_url(self):
         def _normalize_email(addr):
@@ -61,7 +62,11 @@ class GmailMessage(models.Model):
                 msg.is_draft_mail,
                 msg.email_sender,
                 msg.gmail_account_id.id if msg.gmail_account_id else None,
-                (msg.gmail_account_id.email or "").lower() if msg.gmail_account_id else None,
+                (
+                    (msg.gmail_account_id.email or "").lower()
+                    if msg.gmail_account_id
+                    else None
+                ),
                 msg.gmail_account_id.avatar_url if msg.gmail_account_id else None,
             )
 
@@ -77,7 +82,9 @@ class GmailMessage(models.Model):
                 )
                 if acc_email:
                     email_hash = hashlib.md5(acc_email.encode()).hexdigest()
-                    msg.avatar_url = f"https://www.gravatar.com/avatar/{email_hash}?d=identicon"
+                    msg.avatar_url = (
+                        f"https://www.gravatar.com/avatar/{email_hash}?d=identicon"
+                    )
                 else:
                     # fallback cuối cùng nếu thiếu cả account/email
                     msg.avatar_url = "/web/static/img/placeholder.png"
@@ -86,8 +93,10 @@ class GmailMessage(models.Model):
             # 2) Mail đến: thử map sender -> gmail.account
             sender_email = _normalize_email(msg.email_sender)
             if sender_email:
-                account = self.env["gmail.account"].sudo().search(
-                    [("email", "=", sender_email)], limit=1
+                account = (
+                    self.env["gmail.account"]
+                    .sudo()
+                    .search([("email", "=", sender_email)], limit=1)
                 )
                 if account and account.avatar_url:
                     msg.avatar_url = account.avatar_url
@@ -95,7 +104,9 @@ class GmailMessage(models.Model):
 
                 # fallback Gravatar theo sender
                 email_hash = hashlib.md5(sender_email.encode()).hexdigest()
-                msg.avatar_url = f"https://www.gravatar.com/avatar/{email_hash}?d=identicon"
+                msg.avatar_url = (
+                    f"https://www.gravatar.com/avatar/{email_hash}?d=identicon"
+                )
             else:
                 msg.avatar_url = "/web/static/img/placeholder.png"
 
@@ -320,7 +331,7 @@ class GmailMessage(models.Model):
             error_count,
         )
         return {"success": success_count, "errors": error_count}
-    
+
     def extract_email_only(self, raw):
         """
         Extract email from 'John Doe <john@example.com>' => john@example.com
