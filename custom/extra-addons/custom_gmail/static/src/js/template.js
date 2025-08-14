@@ -683,6 +683,18 @@ export default xml`
             <div class="compose-textarea-container">
                 <textarea id="compose_body" class="compose-textarea"></textarea>
             </div>
+            <div class="compose-signature-field" style="margin-top: 12px;">
+                <label style="display:block; font-weight:500; margin-bottom:4px;">Ảnh chữ ký</label>
+                <input id="signature_image" type="file" accept="image/*"
+                    t-on-change="onSignatureSelected"
+                    style="display:block; margin-bottom:8px;"/>
+                <div class="signature-preview" t-if="state.signatureImageUrl"
+                    style="border:1px solid #ddd; padding:6px; display:inline-block; border-radius:4px; max-width:300px;">
+                    <img t-att-src="state.signatureImageUrl"
+                        alt="Signature Preview"
+                        style="max-width:100%; height:auto;"/>
+                </div>
+            </div>
             <div class="compose-field">
                 <div>
                     <label for="file_attachments" class="btn btn-sm btn-secondary" style="cursor: pointer;">

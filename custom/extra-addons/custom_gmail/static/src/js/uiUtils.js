@@ -1,4 +1,17 @@
 /** @odoo-module **/
+
+export function onSignatureSelected(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.state.signatureImageUrl = e.target.result;
+            this.render();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
 // true nếu là ảnh => show thumbnail
 export function isImage(mimetype) {
     return typeof mimetype === 'string' && mimetype.startsWith('image/');

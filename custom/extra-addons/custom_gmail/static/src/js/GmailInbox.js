@@ -29,7 +29,8 @@ import {
     toggleSelect,
     toggleSelectAll,
     toggleThreadMessage,
-    isImage, iconByMime
+    isImage, iconByMime,
+    onSignatureSelected
 } from "./uiUtils";
 
 
@@ -103,6 +104,7 @@ export class GmailInbox extends Component {
 
         // Các method binding
         console.log(removeAttachment);
+        this.onSignatureSelected = onSignatureSelected.bind(this);
         this.iconByMime = iconByMime.bind(this);
         this.isImage = isImage.bind(this);
         this.removeAttachment = (...args) => removeAttachment?.apply(this, args);
