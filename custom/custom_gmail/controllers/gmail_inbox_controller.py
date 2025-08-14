@@ -681,8 +681,8 @@ class GmailInboxController(http.Controller):
             return {"status": "ok", "id": id, "starred": starred}
         else:
             return {"status": "not_found", "id": id}
-    
-    @http.route('/gmail/delete_message', type='json', auth='user', csrf=False)
+
+    @http.route("/gmail/delete_message", type="json", auth="user", csrf=False)
     def delete_message(self, message_id=None, **kw):
         # --- Validate và chuẩn hóa ID ---
         if not message_id:
@@ -695,7 +695,7 @@ class GmailInboxController(http.Controller):
 
         # --- Xử lý từng thư ---
         for mid in ids:
-            msg = request.env['mail.message'].sudo().browse(mid)
+            msg = request.env["mail.message"].sudo().browse(mid)
             if not msg.exists() or not msg.gmail_id:
                 continue
 
@@ -709,8 +709,7 @@ class GmailInboxController(http.Controller):
             trash_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg.gmail_id}/trash"
             try:
                 resp = requests.post(
-                    trash_url,
-                    headers={"Authorization": f"Bearer {token}"}
+                    trash_url, headers={"Authorization": f"Bearer {token}"}
                 )
             except Exception as e:
                 _logger.error("HTTP request failed: %s", e)
@@ -721,24 +720,30 @@ class GmailInboxController(http.Controller):
                 acct.refresh_access_token()
                 token = acct.access_token
                 resp = requests.post(
-                    trash_url,
-                    headers={"Authorization": f"Bearer {token}"}
+                    trash_url, headers={"Authorization": f"Bearer {token}"}
                 )
 
             if resp.status_code != 200:
                 _logger.error("Gmail trash failed %s: %s", resp.status_code, resp.text)
-                return {"success": False, "error": f"Gmail trash HTTP {resp.status_code}"}
+                return {
+                    "success": False,
+                    "error": f"Gmail trash HTTP {resp.status_code}",
+                }
 
             _logger.info("Moved Gmail ID %s to Trash (HTTP)", msg.gmail_id)
 
             # Xóa attachments & notification
-            request.env['ir.attachment'].sudo().search([
-                ('res_model', '=', 'mail.message'),
-                ('res_id', '=', msg.id),
-            ]).unlink()
-            request.env['mail.notification'].sudo().search([
-                ('mail_message_id', '=', msg.id),
-            ]).unlink()
+            request.env["ir.attachment"].sudo().search(
+                [
+                    ("res_model", "=", "mail.message"),
+                    ("res_id", "=", msg.id),
+                ]
+            ).unlink()
+            request.env["mail.notification"].sudo().search(
+                [
+                    ("mail_message_id", "=", msg.id),
+                ]
+            ).unlink()
 
             # Xóa record Odoo
             msg.unlink()
@@ -1001,7 +1006,7 @@ class MailAPIController(http.Controller):
                     "client_secret": config["client_secret"],
                     "refresh_token": acct.refresh_token,
                     "grant_type": "refresh_token",
-                }
+                },
             )
 
             resp.raise_for_status()
