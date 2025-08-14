@@ -160,7 +160,10 @@ cython_debug/
 #.idea/
 
 # Ignore this Symlink 
-custom/.vscode
-sync.ipynb
+
+custom/config
+custom/sync.ipynb
 docker-compose.yml
-/gmail_config.py
+**/gmail_config.py
+Dockerfile
+
