@@ -683,18 +683,39 @@ export default xml`
             <div class="compose-textarea-container">
                 <textarea id="compose_body" class="compose-textarea"></textarea>
             </div>
-            <div class="compose-signature-field" style="margin-top: 12px;">
-                <label style="display:block; font-weight:500; margin-bottom:4px;">Ảnh chữ ký</label>
-                <input id="signature_image" type="file" accept="image/*"
-                    t-on-change="onSignatureSelected"
-                    style="display:block; margin-bottom:8px;"/>
-                <div class="signature-preview" t-if="state.signatureImageUrl"
-                    style="border:1px solid #ddd; padding:6px; display:inline-block; border-radius:4px; max-width:300px;">
-                    <img t-att-src="state.signatureImageUrl"
-                        alt="Signature Preview"
-                        style="max-width:100%; height:auto;"/>
-                </div>
-            </div>
+            <!-- 🔁 Signature (dynamic from active account) -->
+                <t t-set="acc" t-value="this.state.accounts.find(a => a.id === this.state.activeTabId)"/>
+                    <div class="email-signature" style="margin-top:16px; padding-top:12px; border-top:1px solid #ddd;">
+                        <table style="border:none; font-family:Arial, sans-serif; font-size:14px;">
+                            <tr>
+                            <td style="padding-right:12px; vertical-align:top;">
+                                <td style="padding-right:12px;vertical-align:top;">
+                                    <img
+                                        class="signature-avatar"
+                                        t-att-src="(acc &amp;&amp; acc.avatar_url) ? acc.avatar_url : '/web/static/img/placeholder.png'"
+                                        alt="Signature Avatar"
+                                        style="width:90px;height:90px;border-radius:50%;object-fit:cover;"
+                                        t-att-data-cid="'sig-avatar-' + (acc ? acc.id : '0')"
+                                        />
+                                </td>
+                            </td>
+                            <td style="vertical-align:top; line-height:1.4;">
+                                <div style="font-weight:bold; font-size:16px; color:#000;">
+                                <t t-esc="acc and acc.user_id and acc.user_id.name or 'User Name'"/>
+                                </div>
+                                <div style="color:#555;">
+                                <t t-esc="acc and acc.email or 'user@example.com'"/>
+                                </div>
+                                <div style="font-weight:bold; color:#000;">WSOFTPRO</div>
+                                <hr style="border:none; border-top:1px solid #ccc; margin:8px 0;" />
+                                <div>📞 (+84) 393 558 941</div>
+                                <div>✉️ <t t-esc="acc and acc.email or 'user@example.com'"/></div>
+                                <div>🌐 <a href="https://wsoftpro.com/" target="_blank" style="color:#0066cc;">https://wsoftpro.com/</a></div>
+                                <div>📍 7/26 Nguyen Hong, Dong Da, Hanoi, Vietnam</div>
+                            </td>
+                            </tr>
+                        </table>
+                        </div>
             <div class="compose-field">
                 <div>
                     <label for="file_attachments" class="btn btn-sm btn-secondary" style="cursor: pointer;">
