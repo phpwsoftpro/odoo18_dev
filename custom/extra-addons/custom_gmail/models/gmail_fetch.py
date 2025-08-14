@@ -79,7 +79,8 @@ class GmailFetch(models.Model):
         scope = (
             "https://www.googleapis.com/auth/gmail.readonly "
             "https://www.googleapis.com/auth/gmail.send "
-            "https://www.googleapis.com/auth/gmail.compose"
+            "https://www.googleapis.com/auth/gmail.compose "
+            "https://www.googleapis.com/auth/gmail.modify"
         )
         auth_url = (
             f"{config['auth_uri']}?response_type=code"
@@ -457,7 +458,24 @@ class GmailFetch(models.Model):
                 account.sudo().write({"has_new_mail": fetched_count > 0})
         except Exception as e:
             _logger.warning("⚠️ Không thể cập nhật cờ has_new_mail: %s", e)
-
+        try:
+            all_msgs = self.search(
+                [
+                    ("gmail_account_id", "=", account.id),
+                    ("is_gmail", "=", True),
+                ],
+                order="date_received desc",
+            )
+            if len(all_msgs) > 100:
+                msgs_to_unlink = all_msgs[100:]
+                _logger.warning(
+                    "🗑️ Xóa %s mail cũ nhất cho account %s",
+                    len(msgs_to_unlink),
+                    account.email,
+                )
+                msgs_to_unlink.sudo().unlink()
+        except Exception as e:
+            _logger.warning("⚠️ Không thể xóa mail cũ: %s", e)
         _logger.info("✅ Đồng bộ Gmail hoàn tất (%s messages)", fetched_count)
         return True
 

@@ -1,3 +1,4 @@
+sync.ipynb
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -161,6 +162,8 @@ cython_debug/
 
 # Ignore this Symlink 
 custom/.vscode
+custom/config
 custom/sync.ipynb
-/docker-compose.yml
-/gmail_config.py
+custom/docker-compose.yml
+custom/gmail_config.py
+custom/Dockerfile

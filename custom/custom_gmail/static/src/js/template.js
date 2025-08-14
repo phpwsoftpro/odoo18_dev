@@ -13,8 +13,20 @@ export default xml`
             <span class="gmail-logo-text">Gmail</span>
         </div>
         <div class="gmail-search">
-            <input type="text" placeholder="Search mail" />
+            <input type="text" placeholder="Search mail"
+                t-model="state.searchBarValue"
+                readonly="true"
+                style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 40px;"
+                t-on-click="toggleSearchPopup"
+            />
+            <t t-if="state.searchBarValue">
+                <button class="clear-search-btn" t-on-click="clearSearchFilter"
+                    style="position:absolute;right:30px;top:5px;background:none;border:none;cursor:pointer;">
+                    <i class="fa fa-times"></i>
+                </button>
+            </t>
             <button class="search-advanced-btn gmail-advanced-icon" t-on-click="toggleSearchPopup">
+
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <g stroke="#444" stroke-width="2" stroke-linecap="round">
                 <line x1="7" y1="7" x2="17" y2="7"/>
@@ -434,7 +446,7 @@ export default xml`
                                         <div class="thread-message" t-att-class="{'current-message': threadMsg.id === state.selectedMessage.id, 'collapsed': threadMsg.collapsed}">
                                             <div class="message-header">
                                                 <div class="sender-info">
-                                                    <img class="sender-avatar" t-att-src="threadMsg.avatar || '/path/to/default-avatar.png' || ''" alt="avatar" />
+                                                    <img t-att-src="threadMsg.avatar_url || '/path/to/default-avatar.png' || ''" alt="avatar" class="sender-avatar" />
                                                     <div class="sender-details">
                                                         <div class="sender-line">
                                                             <strong class="sender-name">
@@ -465,11 +477,11 @@ export default xml`
 
 
 
-                                                <button class="icon-btn reply" aria-label="Phản hồi" t-on-click="(ev) => this.onReply(ev, threadMsg)">
+                                                <button class="icon-btn reply" title="Trả lời" aria-label="Phản hồi" t-on-click="(ev) => this.onReply(ev, threadMsg)">
                                                     <i class="fa fa-reply"></i>
                                                 </button>
 
-                                                <button class="icon-btn reply-all" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
+                                                <button class="icon-btn reply-all" title="Trả lời tất cả" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
                                                     <i class="fa fa-reply-all"></i>
                                                 </button>
 
@@ -479,7 +491,7 @@ export default xml`
                                                     <i class="fa fa-magic"></i> Phân tích
                                                 </button>
 
-                                                <button class="icon-btn forward" aria-label="Chuyển tiếp" t-on-click="(ev) => this.onForward(ev, state.selectedMessage)">
+                                                <button class="icon-btn forward" title="Chuyển tiếp" aria-label="Chuyển tiếp" t-on-click="(ev) => this.onForward(ev, state.selectedMessage)">
                                                     <i class="fa fa-share"></i>
                                                 </button>
 
@@ -509,7 +521,7 @@ export default xml`
                                                             <li class="dropdown-item" t-on-click="() => window.print()">
                                                                 <i class="fa fa-print" style="margin-right: 8px;"></i> Print
                                                             </li>
-                                                            <li class="dropdown-item" t-on-click="() => this.onDeleteMessage(threadMsg)">
+                                                            <li class="dropdown-item" t-on-click="(ev) => this.onDeleteMessage(ev, threadMsg)">
                                                                 <i class="fa fa-trash" style="margin-right: 8px;"></i> Delete this message
                                                             </li>
                                                         </ul>
@@ -521,7 +533,53 @@ export default xml`
                                             
                                             <t t-raw="threadMsg.body"/>
                                         </div>
+                                        <style>
+                                        .attachments { margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
+                                        .attachments-title { font-size: 13px; font-weight: 500; color: #555; margin-bottom: 8px; }
+                                        .attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+                                        .attachment-card { position: relative; border: 1px solid #e6e8eb; border-radius: 10px; background: #fff; padding: 10px; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; display: flex; flex-direction: column; min-height: 140px; }
+                                        .attachment-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.08); transform: translateY(-1px); border-color: #d8dbe0; }
+                                        .attachment-card.image .attachment-thumb { display: block; width: 100%; max-width: 160px; height: auto; max-height: 120px; object-fit: cover; border-radius: 8px; margin: 0 auto 8px auto; background: #f6f7f9; }
+                                        .file-icon { font-size: 28px; color: #6b7280; margin-bottom: 6px; }
+                                        .file-meta { display: flex; flex-direction: column; gap: 2px; }
+                                        .file-meta .file-name { font-size: 13px; font-weight: 600; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                                        .file-meta .file-size { font-size: 12px; color: #6b7280; }
+                                        .attachment-actions { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+                                        .attachment-actions .btn { display: inline-flex; align-items: center; border: 1px solid #e5e7eb; background: #fafafa; color: #374151; font-size: 12px; padding: 3px 8px; border-radius: 5px; text-decoration: none; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+                                        .attachment-actions .btn:hover { background: #f3f4f6; border-color: #e0e2e7; }
+                                        .attachment-actions .btn:active { transform: translateY(1px); }
+                                        </style>
 
+                                        <t t-if="(threadMsg.attachments or []).length &gt; 0">
+                                            <div class="attachments">
+                                                <div class="attachments-title">
+                                                    <t t-esc="threadMsg.attachments.length"/> attachment
+                                                    <t t-if="threadMsg.attachments.length &gt; 1">s</t>
+                                                </div>
+                                                <div class="attachments-grid">
+                                                    <t t-foreach="threadMsg.attachments" t-as="att" t-key="att.id">
+                                                        <div class="attachment-card" t-att-class="this.isImage(att.mimetype) ? 'image' : 'file'">
+                                                            <t t-if="this.isImage(att.mimetype)">
+                                                                <a t-att-href="att.url" target="_blank" rel="noopener">
+                                                                    <img t-att-src="att.url" alt="preview" class="attachment-thumb"/>
+                                                                </a>
+                                                            </t>
+                                                            <t t-else="">
+                                                                <div class="file-icon"><i t-att-class="this.iconByMime(att)"></i></div>
+                                                                <div class="file-meta">
+                                                                    <div class="file-name" t-att-title="att.name"><t t-esc="att.name"/></div>
+                                                                    <div class="file-size">mimetype: <t t-esc="att.mimetype or 'unknown'"/></div>
+                                                                </div>
+                                                            </t>
+                                                            <div class="attachment-actions">
+                                                                <a class="btn btn-xs" t-att-href="att.url" target="_blank" rel="noopener">Open</a>
+                                                                <a class="btn btn-xs" t-att-href="att.download_url or (att.url + '&amp;download=true')">Download</a>
+                                                            </div>
+                                                        </div>
+                                                    </t>
+                                                </div>
+                                            </div>
+                                        </t>
                                     </div>
                                 </t>
                             </div>

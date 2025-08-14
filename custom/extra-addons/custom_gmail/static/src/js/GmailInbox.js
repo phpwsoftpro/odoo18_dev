@@ -1,9 +1,9 @@
 /** @odoo-module **/
-import { Component, markup, onMounted } from "@odoo/owl";
+import { Component, markup, onMounted, useEffect } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { initCKEditor, loadCKEditor } from "./ckeditor";
-import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, toggleStar } from "./functions/index";
+import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, onDeleteMessage, toggleStar } from "./functions/index";
 import { openComposeModal } from "./functions/openComposeModal";
 import { initialState } from "./state";
 import { loadStarredState, saveStarredState } from "./storageUtils";
@@ -29,6 +29,7 @@ import {
     toggleSelect,
     toggleSelectAll,
     toggleThreadMessage,
+    isImage, iconByMime
 } from "./uiUtils";
 
 
@@ -102,6 +103,8 @@ export class GmailInbox extends Component {
 
         // Các method binding
         console.log(removeAttachment);
+        this.iconByMime = iconByMime.bind(this);
+        this.isImage = isImage.bind(this);
         this.removeAttachment = (...args) => removeAttachment?.apply(this, args);
         this.onFileSelected = onFileSelected.bind(this);
         this.onSnooze = onSnooze.bind(this);
@@ -118,6 +121,7 @@ export class GmailInbox extends Component {
         this.onReply = onReply.bind(this);
         this.onReplyAll = onReplyAll.bind(this);
         this.onForward = onForward.bind(this);
+        this.onDeleteMessage = onDeleteMessage.bind(this);
         this.toggleDropdown = toggleDropdown.bind(this);
         this.toggleDropdownVertical = toggleDropdownVertical.bind(this);
         this.toggleAccounts = toggleAccounts.bind(this);
@@ -148,7 +152,7 @@ export class GmailInbox extends Component {
         this.state.popupMessage = null;
         this.onAnalyze = onAnalyze.bind(this);
         this.state.messagesByEmail = {};
-        //  logic gốc để các nút "Gắn sao", "Đã gửi", "Thư nháp" hoạt động đúng
+        this.state.searchBarValue = "";
         this.switchFolder = this._switchFolder.bind(this);
 
         // Logic toggle sidebar "Hiện thêm"
@@ -172,6 +176,58 @@ export class GmailInbox extends Component {
             this.state.showAdvancedSearch = !this.state.showAdvancedSearch;
             this.render();  // Re-render to reflect the state change
         };
+        // ===== Build chuỗi query theo style Gmail
+        this.buildSearchQueryString = (q) => {
+            const parts = [];
+            if (q.from) parts.push(`from:(${q.from})`);
+            if (q.to) parts.push(`to:(${q.to})`);
+            if (q.subject) parts.push(`subject:(${q.subject})`);
+            if (q.hasWords) parts.push(q.hasWords);
+            if (q.doesntHave) parts.push(`-${q.doesntHave}`);
+
+            // size: Gmail dùng larger/smaller
+            if (q.sizeValue) {
+                const op = q.sizeOperator === "greater" ? "larger" : "smaller";
+                parts.push(`${op}:${q.sizeValue}${(q.sizeUnit || "MB").toUpperCase()}`);
+            }
+
+            // date
+            if (q.dateValue) parts.push(`before:${q.dateValue.replace(/-/g, "/")}`);
+            if (q.dateWithin && q.dateWithin !== "1 day") {
+                if (q.dateWithin === "1 week") parts.push("newer_than:7d");
+                if (q.dateWithin === "1 month") parts.push("newer_than:30d");
+            }
+
+            // in:
+            if (q.searchIn && q.searchIn !== "all") parts.push(`in:${q.searchIn}`);
+
+            if (q.hasAttachment) parts.push("has:attachment");
+            if (q.excludeChats) parts.push("-in:chats");
+            return parts.join(" ").trim();
+        };
+
+        // ===== Tự động cập nhật preview mỗi khi user nhập trong popup (vì template dùng t-model)
+        useEffect(
+            () => {
+                this.state.searchBarValue = this.buildSearchQueryString(this.state.searchQuery);
+            },
+            () => [
+                this.state.searchQuery.from,
+                this.state.searchQuery.to,
+                this.state.searchQuery.subject,
+                this.state.searchQuery.hasWords,
+                this.state.searchQuery.doesntHave,
+                this.state.searchQuery.sizeOperator,
+                this.state.searchQuery.sizeValue,
+                this.state.searchQuery.sizeUnit,
+                this.state.searchQuery.dateWithin,
+                this.state.searchQuery.dateValue,
+                this.state.searchQuery.searchIn,
+                this.state.searchQuery.hasAttachment,
+                this.state.searchQuery.excludeChats,
+            ],
+        );
+
 
         // Example search query state
         this.state.searchQuery = {
@@ -189,26 +245,32 @@ export class GmailInbox extends Component {
             hasAttachment: false,
             excludeChats: false,
         };
+
         this.toggleSearchPopup = () => {
             this.state.showSearchPopup = !this.state.showSearchPopup;
             this.render();
+            if (this.state.showSearchPopup) {
+                setTimeout(() => {
+                    document.addEventListener("mousedown", this._onClickOutsideSearchPopup);
+                }, 0);
+            } else {
+                document.removeEventListener("mousedown", this._onClickOutsideSearchPopup);
+            }            
         };
         this.state.showSearchPopup = false;
         
-        this.onSearchAdvanced = () => {
+        this.onSearchAdvanced = async () => {
             const query = { ...this.state.searchQuery };
 
-            // Ví dụ kiểm tra hợp lệ: Nếu có sizeValue thì phải là số dương
+            // Kiểm tra hợp lệ sizeValue
             if (query.sizeValue && (!/^\d+$/.test(query.sizeValue) || Number(query.sizeValue) <= 0)) {
                 alert("Size must be a positive number!");
                 return;
             }
 
-            // Thực hiện tìm kiếm (gọi API hoặc filter local)
-            // Ví dụ: gọi hàm loadMessages với query nâng cao
-            this.loadMessagesWithAdvancedSearch(query);
-
-            // Đóng popup sau khi search
+            this.state.isLoading = true;
+            await this.loadMessagesWithAdvancedSearch(query);
+            this.state.isLoading = false;
             this.state.showSearchPopup = false;
         };
 
@@ -216,7 +278,6 @@ export class GmailInbox extends Component {
             const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
             if (!acc) return;
 
-            // Chuẩn hóa dữ liệu gửi lên backend
             const params = {
                 account_id: parseInt(acc.id),
                 from: query.from,
@@ -236,12 +297,9 @@ export class GmailInbox extends Component {
                 limit: this.state.pagination.pageSize,
             };
 
-            // Gọi API search nâng cao (bạn cần tạo route /gmail/advanced_search ở backend)
             const res = await rpc("/gmail/advanced_search", params);
 
-            // Xử lý kết quả trả về
             if (res && res.messages) {
-                // Xử lý giống các hàm loadGmailMessages...
                 for (const msg of res.messages) {
                     msg.body_cleaned = msg.body;
                     msg.body = markup(msg.body);
@@ -259,8 +317,26 @@ export class GmailInbox extends Component {
             }
             this.render();
         };
-
-
+        this.clearSearchFilter = () => {
+        this.state.searchQuery = {
+            from: '',
+            to: '',
+            subject: '',
+            hasWords: '',
+            doesntHave: '',
+            sizeOperator: 'greater',
+            sizeValue: '',
+            sizeUnit: 'MB',
+            dateWithin: '1 day',
+            dateValue: '',
+            searchIn: 'all',
+            hasAttachment: false,
+            excludeChats: false,
+        };
+            this.state.searchBarValue = "";
+            this.state.messages = [];
+            this.render();
+        };
         this._onClickOutsideVertical = (event) => {
             const dropdown = document.querySelector(".dropdown-menu-vertical");
             const button = document.querySelector(".icon-btn-option");
@@ -273,6 +349,14 @@ export class GmailInbox extends Component {
             this.render();
         };
 
+        this._onClickOutsideSearchPopup = (event) => {
+            const popup = document.querySelector(".advanced-search-popup");
+            const btn = document.querySelector(".gmail-advanced-icon");
+            if (popup?.contains(event.target) || btn?.contains(event.target)) return;
+            this.state.showSearchPopup = false;
+            document.removeEventListener("mousedown", this._onClickOutsideSearchPopup);
+            this.render();
+        };
 
         // 🛑 Khôi phục từ localStorage (ban đầu)
         const savedAccounts = localStorage.getItem("gmail_accounts");
@@ -283,7 +367,6 @@ export class GmailInbox extends Component {
                 this.loadMessages(this.state.accounts[0].email);
             }
         }
-
         // 🔁 Mount chính: Load account
         onMounted(async () => {
             const currentUserId = await getCurrentUserId();
