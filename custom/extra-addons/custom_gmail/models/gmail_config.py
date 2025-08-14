@@ -14,6 +14,7 @@ class GmailConfig(models.Model):
         """
         _logger.debug("Loading Google API configuration.")
         return {
+
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "redirect_uri": "http://localhost:8070/odoo/gmail/auth/callback",

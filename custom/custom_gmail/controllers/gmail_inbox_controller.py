@@ -155,7 +155,7 @@ class GmailInboxController(http.Controller):
                     "id": msg.id,
                     "subject": msg.subject or "No Subject",
                     "sender": msg.email_sender or "Unknown Sender",
-                    "to": extract_email_only(msg.email_sender or ""),
+                    "to": extract_email_only(msg.email_receiver or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
@@ -163,6 +163,8 @@ class GmailInboxController(http.Controller):
                         else ""
                     ),
                     "body": msg.body,
+                    "cc": msg.email_cc or "",
+                    "bcc": msg.email_bcc or "",
                     "attachments": attachment_list,
                     "thread_id": msg.thread_id or "",
                     "message_id": msg.message_id or "",
@@ -219,9 +221,10 @@ class GmailInboxController(http.Controller):
                     "id": msg.id,
                     "subject": msg.subject or "No Subject",
                     "sender": msg.email_sender or "Unknown Sender",
-                    "to": extract_email_only(msg.email_sender or ""),
+                    "to": extract_email_only(msg.email_receiver or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
                     "cc": msg.email_cc or "",
+                    "bcc": msg.email_bcc or "",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
                         if msg.date_received
@@ -284,8 +287,10 @@ class GmailInboxController(http.Controller):
                     "id": msg.id,
                     "subject": msg.subject or "No Subject",
                     "sender": msg.email_sender or "Unknown Sender",
-                    "to": extract_email_only(msg.email_sender or ""),
+                    "to": extract_email_only(msg.email_receiver or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
+                    "cc": msg.email_cc or "",  # <— thêm
+                    "bcc": msg.email_bcc or "",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
                         if msg.date_received
@@ -346,8 +351,10 @@ class GmailInboxController(http.Controller):
                     "id": msg.id,
                     "subject": msg.subject or "No Subject",
                     "sender": msg.email_sender or "Unknown Sender",
-                    "to": extract_email_only(msg.email_sender or ""),
+                    "to": extract_email_only(msg.email_receiver or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
+                    "cc": msg.email_cc or "",
+                    "bcc": msg.email_bcc or "",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
                         if msg.date_received
@@ -407,8 +414,10 @@ class GmailInboxController(http.Controller):
                     "id": msg.id,
                     "subject": msg.subject or "No Subject",
                     "sender": msg.email_sender or "Unknown Sender",
-                    "to": extract_email_only(msg.email_sender or ""),
+                    "to": extract_email_only(msg.email_receiver or ""),
                     "receiver": msg.email_receiver or "Unknown Receiver",
+                    "cc": msg.email_cc or "",
+                    "bcc": msg.email_bcc or "",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
                         if msg.date_received
@@ -1034,6 +1043,7 @@ class MailAPIController(http.Controller):
         if _split_addr(bcc):
             root["Bcc"] = bcc
         root["From"] = sender_email
+        _logger.info("message_id FE gửi lên: %r", message_id)
         root["Subject"] = subject
         if message_id:
             root["In-Reply-To"] = f"<{message_id}>"
@@ -1440,6 +1450,7 @@ class MailAPIController(http.Controller):
                     "to": msg.email_receiver or "",
                     "receiver": msg.email_receiver or "",
                     "cc": msg.email_cc or "",
+                    "bcc": msg.email_bcc or "",
                     "date_received": (
                         msg.date_received.strftime("%Y-%m-%d %H:%M:%S")
                         if msg.date_received

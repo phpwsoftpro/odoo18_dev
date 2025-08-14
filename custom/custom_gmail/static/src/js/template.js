@@ -481,7 +481,7 @@ export default xml`
                                                     <i class="fa fa-reply"></i>
                                                 </button>
 
-                                                <button class="icon-btn reply-all" title="Trả lời tất cả" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, state.selectedMessage)">
+                                                <button class="icon-btn reply-all" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, threadMsg)">
                                                     <i class="fa fa-reply-all"></i>
                                                 </button>
 

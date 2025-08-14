@@ -990,9 +990,10 @@ export class GmailInbox extends Component {
                 //     || m.body?.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, "")
                 //     || m.body,
                 body_cleaned: m.body,
-                sender: m.sender || m.email_sender || "Unknown Sender",  // ✅ Dòng quan trọng
+                sender: m.sender || m.email_sender || "Unknown Sender",
                 email_receiver: m.email_receiver || '',
                 email_cc: m.email_cc || '',
+                email_bcc: m.email_bcc || '',
                 showDropdown: false,
                 date: m.date || m.date_received || null,
             }))
@@ -1002,6 +1003,7 @@ export class GmailInbox extends Component {
                 sender: msg.sender || msg.email_sender || "Unknown Sender",  // ✅ Dòng quan trọng
                 email_receiver: msg.email_receiver || '',
                 email_cc: msg.email_cc || '',
+                email_bcc: msg.email_bcc || '',
                 showDropdown: false,
             }];
 
@@ -1023,6 +1025,7 @@ export class GmailInbox extends Component {
                         sender: m.sender || m.email_sender || "Unknown Sender",
                         email_receiver: m.email_receiver || '',
                         email_cc: m.email_cc || '',
+                        email_bcc: m.email_bcc || '',
                         showDropdown: false,
                     }));
                     this.state.threads[threadId] = thread;

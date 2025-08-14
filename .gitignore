@@ -1,5 +1,4 @@
-sync.ipynb
-# Byte-compiled / optimized / DLL files
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -161,9 +160,10 @@ cython_debug/
 #.idea/
 
 # Ignore this Symlink 
-custom/.vscode
+
 custom/config
 custom/sync.ipynb
 docker-compose.yml
 **/gmail_config.py
 Dockerfile
+
