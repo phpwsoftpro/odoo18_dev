@@ -438,7 +438,7 @@ export class GmailInbox extends Component {
         const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
         if (!acc) return;
 
-        // --- Gmail chuyên biệt ---
+        // Gmail-only folders/labels
         if (folder === "starred" && acc.type === "gmail") {
             return this.loadGmailStarredMessages(acc.email);
         }
@@ -447,32 +447,26 @@ export class GmailInbox extends Component {
         }
         if (
             acc.type === "gmail" &&
-            ["important", "chat", "scheduled", "spam", "trash",
-            "category_promotions", "category_social",
-            "category_updates", "category_forums"].includes(folder)
+            ["important","chat","scheduled","spam","trash",
+            "category_promotions","category_social",
+            "category_updates","category_forums"].includes(folder)
         ) {
             return this.loadGmailMessages(acc.email, 1, folder.toUpperCase());
         }
 
-        // --- CÁI BẠN CẦN: ĐÃ GỬI cho cả Gmail & Outlook ---
+        // ✅ ĐÃ GỬI cho cả hai loại tài khoản
         if (folder === "sent") {
-            if (acc.type === "gmail") {
-                return this.loadGmailSentMessages(acc.email);
-            } else if (acc.type === "outlook") {
-                return this.loadOutlookSentMessages(acc.email);
-            }
+            if (acc.type === "gmail")  return this.loadGmailSentMessages(acc.email);
+            if (acc.type === "outlook") return this.loadOutlookSentMessages(acc.email);
         }
 
-        // (tuỳ chọn) nháp cho cả hai
+        // (tùy chọn) Drafts cho cả hai
         if (folder === "drafts") {
-            if (acc.type === "gmail") {
-                return this.loadGmailDraftMessages(acc.email);
-            } else if (acc.type === "outlook") {
-                return this.loadOutlookDraftMessages(acc.email);
-            }
+            if (acc.type === "gmail")  return this.loadGmailDraftMessages(acc.email);
+            if (acc.type === "outlook") return this.loadOutlookDraftMessages(acc.email);
         }
 
-        // --- Mặc định: tải hộp thư đến tương ứng loại account ---
+        // Mặc định: Inbox theo loại account
         return this.loadMessages(acc.email, true);
     }
 
@@ -785,18 +779,19 @@ export class GmailInbox extends Component {
             const prev = this.state.pagination.currentPage - 1;
 
             if (acc.type === 'gmail') {
-                if (this.state.currentFolder === 'sent')      return this.loadGmailSentMessages(acc.email, prev);
-                if (this.state.currentFolder === 'drafts')    return this.loadGmailDraftMessages(acc.email, prev);
-                if (this.state.currentFolder === 'starred')   return this.loadGmailStarredMessages(acc.email, prev);
-                if (this.state.currentFolder === 'all_mail')  return this.loadGmailAllMailMessages(acc.email, prev);
+                if (this.state.currentFolder === 'sent')     return this.loadGmailSentMessages(acc.email, prev);
+                if (this.state.currentFolder === 'drafts')   return this.loadGmailDraftMessages(acc.email, prev);
+                if (this.state.currentFolder === 'starred')  return this.loadGmailStarredMessages(acc.email, prev);
+                if (this.state.currentFolder === 'all_mail') return this.loadGmailAllMailMessages(acc.email, prev);
                 return this.loadGmailMessages(acc.email, prev);
             } else if (acc.type === 'outlook') {
-                if (this.state.currentFolder === 'sent')      return this.loadOutlookSentMessages(acc.email);
-                if (this.state.currentFolder === 'drafts')    return this.loadOutlookDraftMessages(acc.email);
+                if (this.state.currentFolder === 'sent')     return this.loadOutlookSentMessages(acc.email, prev);
+                if (this.state.currentFolder === 'drafts')   return this.loadOutlookDraftMessages(acc.email, prev);
                 return this.loadOutlookMessages(acc.email);
             }
         }
     }
+
 
 
     async loadOutlookMessages(email) {
@@ -826,17 +821,43 @@ export class GmailInbox extends Component {
     }
 
 
-    async loadOutlookSentMessages(email) {
-        const res = await rpc("/outlook/sent_messages");
+    async loadOutlookSentMessages(email, page = 1) {
+        const res = await rpc("/outlook/sent_messages", {
+            page,
+            limit: this.state.pagination.pageSize,
+        });
+
         if (res.status === "ok") {
-            const messages = res.messages.map((msg) => ({ ...msg, type: "outlook" }));
+            const messages = res.messages.map((msg) => {
+                const html = msg.body_html || msg.body || "";
+                const tmp = document.createElement("div");
+                tmp.innerHTML = html;
+                const preview = (tmp.textContent || "").trim().slice(0, 200);
+
+                return {
+                    ...msg,
+                    type: "outlook",
+                    body_cleaned: html,
+                    body: markup(html),   // để t-raw hiển thị HTML
+                    preview,
+                };
+            });
+
             this.state.messagesByEmail[email] = messages;
             this.state.messages = messages;
+
+            // cập nhật phân trang (fallback nếu backend chưa trả total)
+            this.state.pagination.currentPage = page;
+            this.state.pagination.total = res.total ?? messages.length;
+            this.state.pagination.totalPages = Math.ceil(
+                this.state.pagination.total / this.state.pagination.pageSize
+            );
         } else {
             console.warn("⚠️ Outlook sent fetch failed:", res.message);
             this.state.messages = [];
         }
     }
+
 
     async loadOutlookDraftMessages(email) {
         const res = await rpc("/outlook/draft_messages");
