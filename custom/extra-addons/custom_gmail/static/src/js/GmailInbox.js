@@ -3,7 +3,7 @@ import { Component, markup, onMounted, useEffect } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { initCKEditor, loadCKEditor } from "./ckeditor";
-import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, onDeleteMessage, toggleStar } from "./functions/index";
+import { onAnalyze, onDeleteMessage, onForward, onReply, onReplyAll, onSendEmail, onSnooze, toggleStar } from "./functions/index";
 import { openComposeModal } from "./functions/openComposeModal";
 import { initialState } from "./state";
 import { loadStarredState, saveStarredState } from "./storageUtils";
@@ -14,6 +14,8 @@ import {
     getInitialBgColor,
     getInitialColor,
     getStatusText,
+    iconByMime,
+    isImage,
     onCloseCompose,
     onFileSelected,
     openFilePreview,
@@ -28,8 +30,7 @@ import {
     toggleDropdownVertical,
     toggleSelect,
     toggleSelectAll,
-    toggleThreadMessage,
-    isImage, iconByMime
+    toggleThreadMessage
 } from "./uiUtils";
 
 
@@ -437,40 +438,38 @@ export class GmailInbox extends Component {
         const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
         if (!acc) return;
 
-        // 👉 Các thư mục có logic riêng
-        if (folder === "starred") {
-            this.loadGmailStarredMessages(acc.email);
-        } else if (folder === "sent") {
-            this.loadGmailSentMessages(acc.email);
-        } else if (folder === "drafts") {
-            this.loadGmailDraftMessages(acc.email);
-        } else if (folder === "snoozed") {
-            this.loadGmailSnoozedMessages(acc.email);
+        // Gmail-only folders/labels
+        if (folder === "starred" && acc.type === "gmail") {
+            return this.loadGmailStarredMessages(acc.email);
         }
-        else if (folder === "all_mail") {
-            await this.loadGmailAllMailMessages(acc.email, 1);
+        if (folder === "all_mail" && acc.type === "gmail") {
+            return this.loadGmailAllMailMessages(acc.email, 1);
         }
-        else if (
-            ["important", "chat", "scheduled", "spam", "trash",
-            "category_promotions", "category_social",
-            "category_updates", "category_forums"].includes(folder)
+        if (
+            acc.type === "gmail" &&
+            ["important","chat","scheduled","spam","trash",
+            "category_promotions","category_social",
+            "category_updates","category_forums"].includes(folder)
         ) {
-            await this.loadGmailMessages(acc.email, 1, folder.toUpperCase());
+            return this.loadGmailMessages(acc.email, 1, folder.toUpperCase());
         }
 
-
-        // 👉 Mở trang cài đặt Gmail cho các label tuỳ chọn
-        else if (folder === "manage_labels") {
-            window.open("https://mail.google.com/mail/u/0/#settings/labels", "_blank");
-        } else if (folder === "create_label") {
-            window.open("https://mail.google.com/mail/u/0/#settings/labels", "_blank");
+        // ✅ ĐÃ GỬI cho cả hai loại tài khoản
+        if (folder === "sent") {
+            if (acc.type === "gmail")  return this.loadGmailSentMessages(acc.email);
+            if (acc.type === "outlook") return this.loadOutlookSentMessages(acc.email);
         }
 
-        // 👉 Mặc định: inbox
-        else {
-            this.loadMessages(acc.email, true);
+        // (tùy chọn) Drafts cho cả hai
+        if (folder === "drafts") {
+            if (acc.type === "gmail")  return this.loadGmailDraftMessages(acc.email);
+            if (acc.type === "outlook") return this.loadOutlookDraftMessages(acc.email);
         }
+
+        // Mặc định: Inbox theo loại account
+        return this.loadMessages(acc.email, true);
     }
+
 
     async onRefresh() {
         if (this.state.isRefreshing) {
@@ -753,48 +752,47 @@ export class GmailInbox extends Component {
     async goNextPage() {
         if (this.state.pagination.currentPage < this.state.pagination.totalPages) {
             const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
-            if (acc) {
-                if (acc.type === 'gmail') {
-                    if (this.state.currentFolder === 'sent') {
-                        await this.loadGmailSentMessages(acc.email, this.state.pagination.currentPage + 1);
-                    } else if (this.state.currentFolder === 'drafts') {
-                        await this.loadGmailDraftMessages(acc.email, this.state.pagination.currentPage + 1);
-                    } else if (this.state.currentFolder === 'starred') {
-                        await this.loadGmailStarredMessages(acc.email, this.state.pagination.currentPage + 1);
-                    }
-                    else if (this.state.currentFolder === 'all_mail') {
-                        await this.loadGmailAllMailMessages(acc.email, this.state.pagination.currentPage + 1);
-                    }
-                    else {
-                        await this.loadGmailMessages(acc.email, this.state.pagination.currentPage + 1);
-                    }
-                }
+            if (!acc) return;
+
+            const next = this.state.pagination.currentPage + 1;
+
+            if (acc.type === 'gmail') {
+                if (this.state.currentFolder === 'sent')      return this.loadGmailSentMessages(acc.email, next);
+                if (this.state.currentFolder === 'drafts')    return this.loadGmailDraftMessages(acc.email, next);
+                if (this.state.currentFolder === 'starred')   return this.loadGmailStarredMessages(acc.email, next);
+                if (this.state.currentFolder === 'all_mail')  return this.loadGmailAllMailMessages(acc.email, next);
+                return this.loadGmailMessages(acc.email, next);
+            } else if (acc.type === 'outlook') {
+                if (this.state.currentFolder === 'sent')      return this.loadOutlookSentMessages(acc.email);
+                if (this.state.currentFolder === 'drafts')    return this.loadOutlookDraftMessages(acc.email);
+                return this.loadOutlookMessages(acc.email);
             }
         }
     }
 
+
     async goPrevPage() {
         if (this.state.pagination.currentPage > 1) {
             const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
-            if (acc) {
-                if (acc.type === 'gmail') {
-                    if (this.state.currentFolder === 'sent') {
-                        await this.loadGmailSentMessages(acc.email, this.state.pagination.currentPage - 1);
-                    } else if (this.state.currentFolder === 'drafts') {
-                        await this.loadGmailDraftMessages(acc.email, this.state.pagination.currentPage - 1);
-                    } else if (this.state.currentFolder === 'starred') {
-                        await this.loadGmailStarredMessages(acc.email, this.state.pagination.currentPage - 1);
-                    }
-                    else if (this.state.currentFolder === 'all_mail') {
-                        await this.loadGmailAllMailMessages(acc.email, this.state.pagination.currentPage - 1);
-                    }
-                    else {
-                        await this.loadGmailMessages(acc.email, this.state.pagination.currentPage - 1);
-                    }
-                }
+            if (!acc) return;
+
+            const prev = this.state.pagination.currentPage - 1;
+
+            if (acc.type === 'gmail') {
+                if (this.state.currentFolder === 'sent')     return this.loadGmailSentMessages(acc.email, prev);
+                if (this.state.currentFolder === 'drafts')   return this.loadGmailDraftMessages(acc.email, prev);
+                if (this.state.currentFolder === 'starred')  return this.loadGmailStarredMessages(acc.email, prev);
+                if (this.state.currentFolder === 'all_mail') return this.loadGmailAllMailMessages(acc.email, prev);
+                return this.loadGmailMessages(acc.email, prev);
+            } else if (acc.type === 'outlook') {
+                if (this.state.currentFolder === 'sent')     return this.loadOutlookSentMessages(acc.email, prev);
+                if (this.state.currentFolder === 'drafts')   return this.loadOutlookDraftMessages(acc.email, prev);
+                return this.loadOutlookMessages(acc.email);
             }
         }
     }
+
+
 
     async loadOutlookMessages(email) {
         const res = await rpc("/outlook/messages");
@@ -823,17 +821,43 @@ export class GmailInbox extends Component {
     }
 
 
-    async loadOutlookSentMessages(email) {
-        const res = await rpc("/outlook/sent_messages");
+    async loadOutlookSentMessages(email, page = 1) {
+        const res = await rpc("/outlook/sent_messages", {
+            page,
+            limit: this.state.pagination.pageSize,
+        });
+
         if (res.status === "ok") {
-            const messages = res.messages.map((msg) => ({ ...msg, type: "outlook" }));
+            const messages = res.messages.map((msg) => {
+                const html = msg.body_html || msg.body || "";
+                const tmp = document.createElement("div");
+                tmp.innerHTML = html;
+                const preview = (tmp.textContent || "").trim().slice(0, 200);
+
+                return {
+                    ...msg,
+                    type: "outlook",
+                    body_cleaned: html,
+                    body: markup(html),   // để t-raw hiển thị HTML
+                    preview,
+                };
+            });
+
             this.state.messagesByEmail[email] = messages;
             this.state.messages = messages;
+
+            // cập nhật phân trang (fallback nếu backend chưa trả total)
+            this.state.pagination.currentPage = page;
+            this.state.pagination.total = res.total ?? messages.length;
+            this.state.pagination.totalPages = Math.ceil(
+                this.state.pagination.total / this.state.pagination.pageSize
+            );
         } else {
             console.warn("⚠️ Outlook sent fetch failed:", res.message);
             this.state.messages = [];
         }
     }
+
 
     async loadOutlookDraftMessages(email) {
         const res = await rpc("/outlook/draft_messages");

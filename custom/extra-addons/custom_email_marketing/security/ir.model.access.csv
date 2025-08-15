@@ -1,7 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_res_partner_custom,res.partner.custom,model_res_partner,,1,1,1,1
-access_tech_stack_user,tech.stack.user,model_tech_stack,,1,1,1,1
-access_mailing_list_folder,access_mailing_list_folder,model_mailing_list_folder,base.group_user,1,1,1,1
-access_task_email_history,access_task_email_history,model_task_email_history,,1,1,1,1
-access_send_task_email_wizard,access_send_task_email_wizard,model_send_task_email_wizard,,1,1,1,0
-access_template_prompt_user,access_template_prompt_user,model_template_prompt,,1,1,1,1
