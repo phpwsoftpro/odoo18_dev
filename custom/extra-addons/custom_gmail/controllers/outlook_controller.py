@@ -1,66 +1,83 @@
-from odoo import http
 from odoo.http import request
 import requests
 import logging
 from lxml import html
 import re
 import json
+import base64
+from odoo import http, fields
+
 _logger = logging.getLogger(__name__)
 
 
 class OutlookMessageController(http.Controller):
     @http.route("/outlook/messages", type="json", auth="user", csrf=False)
-    def outlook_messages(self, folder="inbox", **kw):
-        # 1) Lấy account + token
-        account = (
-            request.env["outlook.account"]
-            .sudo()
-            .search([("user_id", "=", request.env.user.id)], limit=1)
-        )
+    def outlook_messages(self, folder="inbox", page=1, limit=20, account_id=None, **kw):
+        # 1) Lấy đúng account + token
+        dom = [("user_id", "=", request.env.user.id)]
+        if account_id:
+            try:
+                dom.append(("id", "=", int(account_id)))
+            except Exception:
+                pass
+        account = request.env["outlook.account"].sudo().search(dom, limit=1)
         if not account:
             return {"status": "error", "message": "Outlook account not found"}
 
         access_token = account.outlook_access_token or ""
         refresh_token = account.outlook_refresh_token or ""
 
-        # Lấy config để refresh (từ model cấu hình của bạn)
         cfg = request.env["outlook.mail.sync"].sudo().get_outlook_config()
 
         def _headers(tok):
-            return {"Authorization": f"Bearer {tok}"}
+            return {
+                "Authorization": f"Bearer {tok}",
+                "Prefer": 'outlook.body-content-type="html"',
+                "ConsistencyLevel": "eventual",
+                "Content-Type": "application/json",
+            }
 
-        def _list(url, tok):
-            return requests.get(url, headers=_headers(tok))
+        # 2) Chuẩn hoá page/limit
+        try:
+            page = int(page or 1)
+            limit = max(1, min(int(limit or 20), 50))
+        except Exception:
+            page, limit = 1, 20
+        skip = (page - 1) * limit
 
-        def _detail(mid, tok):
-            u = f"https://graph.microsoft.com/v1.0/me/messages/{mid}"
-            return requests.get(u, headers=_headers(tok))
+        # 3) URL theo folder
+        select_fields = (
+            "id,subject,receivedDateTime,sentDateTime,from,sender,"
+            "toRecipients,ccRecipients,bodyPreview,body,conversationId,internetMessageId"
+        )
 
-        # 2) Xác định URL list theo folder
+        inbox_url = (
+            "https://graph.microsoft.com/v1.0/me/mailFolders('inbox')/messages"
+            f"?$orderby=receivedDateTime desc&$top={limit}&$skip={skip}"
+            f"&$select={select_fields}&$count=true"
+        )
+        sent_url = (
+            "https://graph.microsoft.com/v1.0/me/mailFolders('sentitems')/messages"
+            f"?$orderby=sentDateTime desc&$top={limit}&$skip={skip}"
+            f"&$select={select_fields}&$count=true"
+        )
+
         urls = []
         if folder in (None, "", "inbox"):
-            urls.append(
-                "https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime desc&$top=20"
-            )
+            urls.append(inbox_url)
         elif folder == "sent":
-            urls.append(
-                "https://graph.microsoft.com/v1.0/me/mailFolders('sentitems')/messages?$orderby=sentDateTime desc&$top=20"
-            )
+            urls.append(sent_url)
         elif folder == "all":
-            urls.append(
-                "https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime desc&$top=20"
-            )
-            urls.append(
-                "https://graph.microsoft.com/v1.0/me/mailFolders('sentitems')/messages?$orderby=sentDateTime desc&$top=20"
-            )
+            urls.append(inbox_url)
+            urls.append(sent_url)
         else:
             return {"status": "error", "message": f"Unknown folder: {folder}"}
 
-        # 3) Gọi API lần đầu
-        lists = []
+        # 4) Gọi Graph (kèm refresh), fallback nếu 400 do $skip
+        lists, totals = [], []
         for list_url in urls:
-            r = _list(list_url, access_token)
-            # 3a) Nếu 401 -> refresh token rồi thử lại (reuse logic controller/drafts hoặc auth)
+            r = requests.get(list_url, headers=_headers(access_token))
+
             if r.status_code == 401 and refresh_token:
                 tk = requests.post(
                     "https://login.microsoftonline.com/common/oauth2/v2.0/token",
@@ -78,14 +95,14 @@ class OutlookMessageController(http.Controller):
                     new_access = tkj.get("access_token")
                     new_refresh = tkj.get("refresh_token") or refresh_token
                     if new_access:
-                        account.write(
+                        account.sudo().write(
                             {
                                 "outlook_access_token": new_access,
                                 "outlook_refresh_token": new_refresh,
                             }
                         )
-                        access_token = new_access  # dùng token mới cho các call sau
-                        r = _list(list_url, access_token)
+                        access_token = new_access
+                        r = requests.get(list_url, headers=_headers(access_token))
                     else:
                         return {"status": "error", "message": "Cannot refresh token"}
                 else:
@@ -94,35 +111,83 @@ class OutlookMessageController(http.Controller):
                         "message": "Outlook token expired. Please log in again.",
                     }
 
+            if r.status_code == 400 and "$skip=" in list_url:
+                url_no_skip = re.sub(r"&\$skip=\d+", "", list_url)
+                r = requests.get(url_no_skip, headers=_headers(access_token))
+
             if r.status_code != 200:
                 return {"status": "error", "message": "Failed to fetch messages"}
 
-            lists.append(r.json().get("value", []))
+            j = r.json()
+            lists.append(j.get("value", []))
+            totals.append(j.get("@odata.count"))
 
-        # 4) Hợp nhất + lấy chi tiết từng mail để có full body HTML
-        Message = request.env["outlook.message"].sudo()  # Lưu vào db
+        # 5) Upsert cache + build response
+        Message = request.env["outlook.message"].sudo()
         full = []
         for idx, message_list in enumerate(lists):
-            for msg in message_list:
-                dr = _detail(msg["id"], access_token)
-                if dr.status_code != 200:
-                    continue
-                d = dr.json()
+            for d in message_list:
                 is_sent = bool(d.get("sentDateTime"))
                 folder_hint = "sent" if ("sentitems" in urls[idx]) else "inbox"
-                Message.upsert_from_graph_detail(
-                    d, folder_hint=folder_hint, user_id=request.env.user.id
+
+                # upsert DB
+                try:
+                    Message.upsert_from_graph_detail(
+                        d,
+                        folder_hint=folder_hint,
+                        user_id=request.env.user.id,
+                        account_id=account.id,
+                        account_email=account.email,
+                    )
+                except Exception:
+                    _logger.exception(
+                        "Upsert Outlook message failed id=%s", d.get("id")
+                    )
+
+                def _recips(lst):
+                    out = []
+                    for r in lst or []:
+                        ea = (r or {}).get("emailAddress") or {}
+                        out.append(
+                            {
+                                "name": ea.get("name") or "",
+                                "address": ea.get("address") or "",
+                            }
+                        )
+                    return out
+
+                def _join(lst):
+                    items = []
+                    for it in lst or []:
+                        nm, ad = it.get("name") or "", it.get("address") or ""
+                        if ad:
+                            items.append(f"{nm} <{ad}>" if nm else ad)
+                    return ", ".join(items)
+
+                to_list = _recips(d.get("toRecipients"))
+                cc_list = _recips(d.get("ccRecipients"))
+
+                # tên người gửi hiển thị
+                display_sender = (
+                    ((d.get("from") or {}).get("emailAddress") or {}).get("name")
+                    or ((d.get("sender") or {}).get("emailAddress") or {}).get("name")
+                    or "Unknown Sender"
                 )
+                from_addr = ((d.get("from") or {}).get("emailAddress") or {}).get(
+                    "address"
+                ) or ""
+
                 full.append(
                     {
                         "id": d["id"],
                         "subject": d.get("subject", "No Subject"),
-                        "sender": d.get("sender", {})
-                        .get("emailAddress", {})
-                        .get("name"),
-                        "from": d.get("from", {})
-                        .get("emailAddress", {})
-                        .get("address"),
+                        "sender": display_sender,
+                        "email_sender": from_addr,
+                        "from": from_addr,
+                        "to": to_list,  # list {name,address}
+                        "cc": cc_list,  # list {name,address}
+                        "email_receiver": _join(to_list),  # chuỗi cho FE dùng chung
+                        "email_cc": _join(cc_list),
                         "date": (
                             d.get("sentDateTime")
                             if is_sent
@@ -131,16 +196,35 @@ class OutlookMessageController(http.Controller):
                         "folder": (
                             "sent" if is_sent or ("sentitems" in urls[idx]) else "inbox"
                         ),
-                        "body_html": d.get("body", {}).get("content", "") or "",
-                        "content_type": d.get("body", {}).get("contentType", "html"),
+                        "body_html": (d.get("body") or {}).get("content") or "",
+                        "content_type": (d.get("body") or {}).get(
+                            "contentType", "html"
+                        ),
                         "type": "outlook",
+                        # 🔴 thêm thông tin hội thoại
+                        "thread_id": d.get("conversationId")
+                        or d.get("internetMessageId")
+                        or d.get("id"),
+                        "conversationId": d.get("conversationId"),
+                        "internetMessageId": d.get("internetMessageId"),
                     }
                 )
 
-        # 5) Sort theo thời gian mới nhất
         full.sort(key=lambda m: m.get("date") or "", reverse=True)
 
-        return {"status": "ok", "messages": full}
+        total = None
+        if len(totals) == 1 and isinstance(totals[0], int):
+            total = totals[0]
+        elif len(totals) == 2:
+            total = sum(t for t in totals if isinstance(t, int))
+
+        return {
+            "status": "ok",
+            "messages": full,
+            "total": total,
+            "page": page,
+            "limit": limit,
+        }
 
     @http.route("/outlook/current_user_info", type="json", auth="user")
     def outlook_current_user_info(self):
@@ -216,12 +300,10 @@ class OutlookMessageController(http.Controller):
             .sudo()
             .search([("user_id", "=", request.env.user.id)], limit=1)
         )
-
         if not account:
             return {"status": "error", "message": "Outlook account not found"}
 
         access_token = account.outlook_access_token
-
         if not access_token:
             return {"status": "error", "message": "No Outlook access token found"}
 
@@ -229,158 +311,222 @@ class OutlookMessageController(http.Controller):
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
+            # Trả về body dạng HTML
+            "Prefer": 'outlook.body-content-type="html"',
         }
-        response = requests.get(url, headers=headers)
-
+        # Lấy đủ trường cần thiết
+        params = {
+            "$select": "id,subject,from,sender,toRecipients,ccRecipients,conversationId,"
+            "internetMessageId,sentDateTime,receivedDateTime,body,isRead"
+        }
+        response = requests.get(url, headers=headers, params=params)
         if response.status_code != 200:
-            _logger.error(f"❌ Failed to fetch Outlook message detail: {response.text}")
+            _logger.error(
+                "❌ Failed to fetch Outlook message detail: %s", response.text
+            )
             return {"status": "error", "message": "Failed to fetch message detail"}
 
-        message = response.json()
-        raw_body = message.get("body", {}).get("content", "")
+        m = response.json()
+        body_html = (m.get("body") or {}).get("content") or ""
 
-        # 👉 Strip Word-style CSS, HTML, and extract clean text
+        # (tùy chọn) upsert cache
         try:
-            # 1. Replace <br> with newline (optional)
-            raw_body = (
-                raw_body.replace("<br>", "\n")
-                .replace("<br/>", "\n")
-                .replace("<br />", "\n")
+            request.env["outlook.message"].sudo().upsert_from_graph_detail(
+                m,
+                folder_hint="sent" if m.get("sentDateTime") else "inbox",
+                user_id=request.env.user.id,
+                account_id=account.id,
+            )
+        except Exception:
+            _logger.exception(
+                "Upsert Outlook message detail failed for id=%s", m.get("id")
             )
 
-            # 2. Remove style/comments (e.g., <!-- ... -->)
-            raw_body = re.sub(r"<!--.*?-->", "", raw_body, flags=re.DOTALL)
-
-            # 3. Parse and extract plain text
-            parsed = html.fromstring(raw_body)
-            cleaned_body = parsed.text_content()
-        except Exception:
-            cleaned_body = raw_body  # fallback if parsing fails
+        def _addr(obj, key):
+            return (obj or {}).get("emailAddress", {}).get(key)
 
         return {
             "status": "ok",
-            "subject": message.get("subject"),
-            "sender": message.get("sender", {}).get("emailAddress", {}).get("name"),
-            "from": message.get("from", {}).get("emailAddress", {}).get("address"),
-            "date": message.get("receivedDateTime"),
-            "body": cleaned_body.strip(),  # 👉 plain text only
-            "content_type": message.get("body", {}).get("contentType", "unknown"),
+            "id": m["id"],
+            "thread_id": m.get("conversationId"),
+            "subject": m.get("subject"),
+            "from": _addr(m.get("from"), "address"),
+            "sender": _addr(m.get("sender"), "name"),
+            "sentDateTime": m.get("sentDateTime"),
+            "receivedDateTime": m.get("receivedDateTime"),
+            "content_type": (m.get("body") or {}).get("contentType", "html"),
+            "body_html": body_html,
+            "is_read": m.get("isRead"),
         }
 
-    @http.route(
-        "/outlook/send_email", type="http", auth="user", methods=["POST"], csrf=False
-    )
-    def outlook_send_email(self, **kw):
-        # Lấy tài khoản Outlook của user
-        account = (
-            request.env["outlook.account"]
-            .sudo()
-            .search([("user_id", "=", request.env.user.id)], limit=1)
+    @http.route("/outlook/thread_detail", type="json", auth="user", csrf=False)
+    def outlook_thread_detail_db_first(
+        self, thread_id=None, conversation_id=None, account_id=None
+    ):
+        thread_id = thread_id or conversation_id
+        if not thread_id:
+            return {"status": "error", "message": "Missing thread_id"}
+
+        # Lấy đúng account của user + id thật trong DB
+        dom_acc = [("user_id", "=", request.env.user.id)]
+        if account_id:
+            try:
+                dom_acc.append(("id", "=", int(account_id)))
+            except Exception:
+                pass
+        account = request.env["outlook.account"].sudo().search(dom_acc, limit=1)
+        if not account:
+            return {"status": "error", "message": "Outlook account not found"}
+
+        Message = request.env["outlook.message"].sudo()
+        acc_email = (account.email or "").strip().lower()
+
+        # 1) Đọc DB trước
+        recs = Message.search(
+            [("thread_id", "=", thread_id), ("account_id", "=", account.id)],
+            order="date asc, id asc",
         )
-        if not account or not account.outlook_access_token:
-            return request.make_response(
-                json.dumps(
-                    {"status": "error", "message": "Outlook account/token missing"}
-                ),
-                headers=[("Content-Type", "application/json")],
+
+        # 2) Nếu chưa có thư do chính mình gửi (folder=sent hoặc from=account.email) => hydrate từ Graph
+        def _has_my_sent(rs):
+            for r in rs:
+                if r.folder == "sent":
+                    return True
+                if (r.sender_address or "").strip().lower() == acc_email:
+                    return True
+            return False
+
+        if not recs or not _has_my_sent(recs):
+            self._hydrate_conversation_from_graph(thread_id, account)  # lấp cache
+            recs = Message.search(
+                [("thread_id", "=", thread_id), ("account_id", "=", account.id)],
+                order="date asc, id asc",
             )
 
-        form = request.httprequest.form
-        files = request.httprequest.files.getlist("attachments[]")
+        # 3) Build JSON trả về
+        def _fmt_dt(d):
+            return fields.Datetime.to_string(d) if d else ""
 
-        to = (form.get("to") or "").strip()
-        cc = (form.get("cc") or "").strip()
-        bcc = (form.get("bcc") or "").strip()
-        subject = form.get("subject") or ""
-        body_html = form.get("body_html") or ""
-
-        if not to:
-            return request.make_response(
-                json.dumps({"status": "error", "message": "Missing 'to'"}),
-                headers=[("Content-Type", "application/json")],
+        out = []
+        for r in recs:
+            when = r.received_datetime or r.sent_datetime or r.date
+            is_sent = (r.folder == "sent") or (
+                (r.sender_address or "").strip().lower() == acc_email
             )
-
-        # Build recipients
-        def _emails(s):
-            return [
-                {"emailAddress": {"address": x.strip()}}
-                for x in s.split(",")
-                if x and x.strip()
-            ]
-
-        payload = {
-            "message": {
-                "subject": subject,
-                "body": {"contentType": "HTML", "content": body_html},
-                "toRecipients": _emails(to),
-            },
-            "saveToSentItems": True,
-        }
-        if cc:
-            payload["message"]["ccRecipients"] = _emails(cc)
-        if bcc:
-            payload["message"]["bccRecipients"] = _emails(bcc)
-
-        # File attachments (Graph cần base64)
-        attachments = []
-        for f in files:
-            content_bytes = base64.b64encode(f.read()).decode("ascii")
-            attachments.append(
+            out.append(
                 {
-                    "@odata.type": "#microsoft.graph.fileAttachment",
-                    "name": f.filename,
-                    "contentBytes": content_bytes,
-                    "contentType": f.mimetype or "application/octet-stream",
+                    "id": r.outlook_msg_id,
+                    "subject": r.subject or "No Subject",
+                    "sender": r.sender_name
+                    or (r.sender_address or "").split("@")[0]
+                    or "Unknown Sender",
+                    "to": r.to_addresses or "",
+                    "receiver": r.to_addresses or "",
+                    "cc": r.cc_addresses or "",
+                    "bcc": r.bcc_addresses or "",
+                    "date_received": _fmt_dt(when),
+                    "body": r.body_html or r.body_text or "",
+                    "attachments": [],
+                    "thread_id": r.thread_id or thread_id,
+                    "message_id": r.internet_message_id or "",
+                    "is_read": r.is_read,
+                    "is_starred_mail": False,
+                    "is_sent_mail": bool(is_sent),
+                    "avatar_url": None,
+                    "type": "outlook",
                 }
             )
-        if attachments:
-            payload["message"]["attachments"] = attachments
 
-        headers = {
-            "Authorization": f"Bearer {account.outlook_access_token}",
-            "Content-Type": "application/json",
-        }
-        url = "https://graph.microsoft.com/v1.0/me/sendMail"
-        resp = requests.post(url, headers=headers, json=payload)
+        return {"status": "ok", "messages": out}
 
-        # Refresh token nếu 401 (tái sử dụng logic refresh như /outlook/messages của bạn)
-        if resp.status_code == 401 and account.outlook_refresh_token:
-            cfg = request.env["outlook.mail.sync"].sudo().get_outlook_config()
+    def _hydrate_conversation_from_graph(self, conv_id, account):
+        access_token = account.outlook_access_token or ""
+        refresh_token = account.outlook_refresh_token or ""
+        cfg = request.env["outlook.mail.sync"].sudo().get_outlook_config()
+
+        def _headers(tok):
+            return {
+                "Authorization": f"Bearer {tok}",
+                "Prefer": 'outlook.body-content-type="html"',
+                "ConsistencyLevel": "eventual",
+                "Content-Type": "application/json",
+            }
+
+        select_fields = (
+            "id,subject,from,sender,toRecipients,ccRecipients,bccRecipients,"
+            "sentDateTime,receivedDateTime,body,conversationId,internetMessageId,"
+            "isRead,hasAttachments"
+        )
+        url = (
+            "https://graph.microsoft.com/v1.0/me/messages"
+            f"?$filter=conversationId eq '{conv_id}'"
+            f"&$orderby=receivedDateTime asc"
+            f"&$select={select_fields}"
+            f"&$top=100"
+        )
+
+        def _fetch(tok, u):
+            return requests.get(u, headers=_headers(tok))
+
+        r = _fetch(access_token, url)
+        if r.status_code == 401 and refresh_token:
             tk = requests.post(
                 "https://login.microsoftonline.com/common/oauth2/v2.0/token",
                 data={
                     "client_id": cfg["client_id"],
                     "client_secret": cfg["client_secret"],
                     "grant_type": "refresh_token",
-                    "refresh_token": account.outlook_refresh_token,
+                    "refresh_token": refresh_token,
                     "redirect_uri": cfg["redirect_uri"],
                     "scope": "https://graph.microsoft.com/.default",
                 },
             )
             if tk.status_code == 200:
                 j = tk.json()
-                new_access = j.get("access_token")
-                if new_access:
-                    account.sudo().write(
-                        {
-                            "outlook_access_token": new_access,
-                            "outlook_refresh_token": j.get("refresh_token")
-                            or account.outlook_refresh_token,
-                        }
-                    )
-                    headers["Authorization"] = f"Bearer {new_access}"
-                    resp = requests.post(url, headers=headers, json=payload)
+                access_token = j.get("access_token") or access_token
+                account.sudo().write(
+                    {
+                        "outlook_access_token": access_token,
+                        "outlook_refresh_token": j.get("refresh_token")
+                        or refresh_token,
+                    }
+                )
+                r = _fetch(access_token, url)
 
-        if resp.status_code in (200, 202):
-            return request.make_response(
-                json.dumps({"status": "ok"}),
-                headers=[("Content-Type", "application/json")]
-            )
-        return request.make_response(
-            json.dumps({"status": "error", "message": resp.text}),
-            headers=[("Content-Type", "application/json")],
-            status=400
-        )
+        if r.status_code != 200:
+            _logger.warning("Graph conversation fetch failed: %s", r.text)
+            return
+
+        Message = request.env["outlook.message"].sudo()
+
+        def _consume(resp_json):
+            items = resp_json.get("value", []) or []
+            for d in items:
+                try:
+                    Message.upsert_from_graph_detail(
+                        d,
+                        # folder sẽ được quyết định trong upsert bằng account_email
+                        folder_hint="inbox",
+                        user_id=request.env.user.id,
+                        account_id=account.id,
+                        account_email=account.email,  # ✅ RẤT QUAN TRỌNG
+                    )
+                except Exception:
+                    _logger.exception(
+                        "Upsert Outlook message (hydrate) failed id=%s", d.get("id")
+                    )
+
+        j = r.json()
+        _consume(j)
+        next_link = j.get("@odata.nextLink")
+        while next_link:
+            r2 = requests.get(next_link, headers=_headers(access_token))
+            if r2.status_code != 200:
+                break
+            j2 = r2.json()
+            _consume(j2)
+            next_link = j2.get("@odata.nextLink")
+
     @http.route("/outlook/draft_messages", type="json", auth="user", csrf=False)
     def outlook_draft_messages(self, **kw):
         """Fetch draft emails from Outlook"""

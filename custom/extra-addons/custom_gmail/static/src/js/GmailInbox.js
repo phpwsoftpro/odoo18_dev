@@ -3,7 +3,7 @@ import { Component, markup, onMounted, useEffect } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 import { initCKEditor, loadCKEditor } from "./ckeditor";
-import { onAnalyze, onForward, onReply, onReplyAll, onSendEmail, onSnooze, onDeleteMessage, toggleStar } from "./functions/index";
+import { onAnalyze, onDeleteMessage, onForward, onReply, onReplyAll, onSendEmail, onSnooze, toggleStar } from "./functions/index";
 import { openComposeModal } from "./functions/openComposeModal";
 import { initialState } from "./state";
 import { loadStarredState, saveStarredState } from "./storageUtils";
@@ -14,6 +14,8 @@ import {
     getInitialBgColor,
     getInitialColor,
     getStatusText,
+    iconByMime,
+    isImage,
     onCloseCompose,
     onFileSelected,
     openFilePreview,
@@ -28,8 +30,7 @@ import {
     toggleDropdownVertical,
     toggleSelect,
     toggleSelectAll,
-    toggleThreadMessage,
-    isImage, iconByMime
+    toggleThreadMessage
 } from "./uiUtils";
 
 
@@ -95,7 +96,143 @@ function formatInboxDate(dateStr) {
     const YY = String(d.getFullYear()).slice(-2);
     return `${MM}/${DD}/${YY}`;
 }
+function oa(x) {
+  if (!x) return { name: "", address: "" };
+  if (typeof x === "string") return { name: "", address: x }; // from là chuỗi
+  const ea = x.emailAddress || x;
+  return { name: ea.name || "", address: ea.address || "" };
+}
 
+function graphName(addr) {
+  const n = (addr?.name || "").trim();
+  const e = (addr?.address || "").trim();
+  if (n) return n;
+  if (e) return e.split("@")[0];
+  return "Unknown Sender";
+}
+function joinEmails(list = []) {
+    // list: [{ emailAddress: { name, address } }, ...]
+    return list
+      .map(it => {
+        const a = oa(it);
+        const n = (a.name || "").trim();
+        const e = (a.address || "").trim();
+        return (n && e) ? `${n} <${e}>` : (e || n || "");
+      })
+      .filter(Boolean)
+      .join(", ");
+}
+function normalizeOutlookMessage(m) {
+  // Lấy thông tin người gửi
+  const fromObj = oa(m.from || m.sender);
+
+  // Chọn thời điểm hiển thị
+  const d =
+    m.date ||
+    m.date_received ||
+    m.receivedDateTime ||
+    m.sentDateTime ||
+    "";
+
+  // Chuẩn hóa TO/CC (chấp nhận cả chuỗi lẫn mảng {emailAddress:{...}})
+  const toStr =
+    m.email_receiver ||
+    (typeof m.to === "string"
+      ? m.to
+      : Array.isArray(m.to)
+      ? joinEmails(m.to)
+      : joinEmails(m.toRecipients || []));
+
+  const ccStr =
+    m.email_cc ||
+    (typeof m.cc === "string"
+      ? m.cc
+      : Array.isArray(m.cc)
+      ? joinEmails(m.cc)
+      : joinEmails(m.ccRecipients || []));
+
+  const bodyHtml = m.body_html || m.body || "";
+
+  return {
+    ...m,
+    type: "outlook",
+
+    // Thread/conversation id (ưu tiên conversationId)
+    thread_id:
+      m.thread_id ||
+      m.conversationId ||
+      m.conversation_id ||
+      m.internetMessageId ||
+      m.id,
+
+    // Tên hiển thị người gửi
+    sender:
+      (typeof m.sender === "string" && m.sender) ||
+      graphName(fromObj) ||
+      (m.email_sender ? m.email_sender.split("@")[0] : "Unknown Sender"),
+
+    // Email người gửi
+    email_sender:
+      m.email_sender ||
+      fromObj.address ||
+      (typeof m.from === "string" ? m.from : ""),
+
+    // Người nhận / CC dưới dạng chuỗi để UI dùng chung với Gmail
+    email_receiver: toStr || "",
+    email_cc: ccStr || "",
+    email_bcc: m.email_bcc || "",
+
+    // Thời gian hiển thị & format phụ
+    date_received: d,
+    dateInbox: d ? formatInboxDate(d) : "",
+    dateDisplayed: d ? `${formatDate(d)} (${timeAgo(d)})` : "",
+
+    // Body cho khung đọc (HTML)
+    body_cleaned: bodyHtml,
+    body: markup(bodyHtml),
+
+    // Trạng thái
+    is_read: m.is_read ?? m.isRead ?? false,
+    is_starred_mail: m.is_starred_mail ?? false,
+    is_sent_mail: (m.folder === "sent") || !!m.sentDateTime,
+
+    showDropdown: false,
+  };
+}
+function normalizeOutlookThreadItem(m) {
+  const html = m.body_html || m.body || "";
+  const d =
+    m.date_received ||
+    m.receivedDateTime ||
+    m.sentDateTime ||
+    m.date ||
+    "";
+
+  // NEW: convert list -> "Name <email>, Name2 <email2>"
+  const toStr = Array.isArray(m.to) ? joinEmails(m.to) : (m.to || "");
+  const ccStr = Array.isArray(m.cc) ? joinEmails(m.cc) : (m.cc || "");
+  const fromStr = m.email_sender || (typeof m.from === "string" ? m.from : "");
+
+  return {
+    ...m,
+    email_sender: fromStr,
+    email_receiver: m.email_receiver || m.receiver || toStr,
+    email_cc: m.email_cc || ccStr,
+    email_bcc: m.email_bcc || m.bcc || "",
+
+    sender: m.sender || (fromStr ? fromStr.split("@")[0] : "Unknown Sender"),
+
+    body_cleaned: html,
+    body: markup(html),
+
+    date_received: d,
+    dateInbox: d ? formatInboxDate(d) : "",
+    dateDisplayed: d ? `${formatDate(d)} (${timeAgo(d)})` : "",
+
+    showDropdown: false,
+    type: "outlook",
+  };
+}
 export class GmailInbox extends Component {
     setup() {
 
@@ -437,40 +574,39 @@ export class GmailInbox extends Component {
         const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
         if (!acc) return;
 
-        // 👉 Các thư mục có logic riêng
-        if (folder === "starred") {
-            this.loadGmailStarredMessages(acc.email);
-        } else if (folder === "sent") {
-            this.loadGmailSentMessages(acc.email);
-        } else if (folder === "drafts") {
-            this.loadGmailDraftMessages(acc.email);
-        } else if (folder === "snoozed") {
-            this.loadGmailSnoozedMessages(acc.email);
+        // Gmail-only folders/labels
+        if (folder === "starred" && acc.type === "gmail") {
+            return this.loadGmailStarredMessages(acc.email);
         }
-        else if (folder === "all_mail") {
-            await this.loadGmailAllMailMessages(acc.email, 1);
+        if (folder === "all_mail" && acc.type === "gmail") {
+            return this.loadGmailAllMailMessages(acc.email, 1);
         }
-        else if (
-            ["important", "chat", "scheduled", "spam", "trash",
-            "category_promotions", "category_social",
-            "category_updates", "category_forums"].includes(folder)
+        if (
+            acc.type === "gmail" &&
+            ["important","chat","scheduled","spam","trash",
+            "category_promotions","category_social",
+            "category_updates","category_forums"].includes(folder)
         ) {
-            await this.loadGmailMessages(acc.email, 1, folder.toUpperCase());
+            return this.loadGmailMessages(acc.email, 1, folder.toUpperCase());
         }
 
-
-        // 👉 Mở trang cài đặt Gmail cho các label tuỳ chọn
-        else if (folder === "manage_labels") {
-            window.open("https://mail.google.com/mail/u/0/#settings/labels", "_blank");
-        } else if (folder === "create_label") {
-            window.open("https://mail.google.com/mail/u/0/#settings/labels", "_blank");
+        // ✅ ĐÃ GỬI cho cả hai loại tài khoản
+        if (folder === "sent") {
+            if (acc.type === "gmail")  return this.loadGmailSentMessages(acc.email, 1);
+            if (acc.type === "outlook") return this.loadOutlookSentMessages(acc.email, 1);
         }
 
-        // 👉 Mặc định: inbox
-        else {
-            this.loadMessages(acc.email, true);
+        // (tùy chọn) Drafts cho cả hai
+        if (folder === "drafts") {
+            if (acc.type === "gmail")  return this.loadGmailDraftMessages(acc.email, 1);
+            if (acc.type === "outlook") return this.loadOutlookDraftMessages(acc.email, 1);
         }
+
+        // Mặc định: Inbox theo loại account
+        if (acc.type === "outlook") return this.loadOutlookMessages(acc.email, 1);
+        return this.loadMessages(acc.email, true);
     }
+
 
     async onRefresh() {
         if (this.state.isRefreshing) {
@@ -753,22 +889,19 @@ export class GmailInbox extends Component {
     async goNextPage() {
         if (this.state.pagination.currentPage < this.state.pagination.totalPages) {
             const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
-            if (acc) {
-                if (acc.type === 'gmail') {
-                    if (this.state.currentFolder === 'sent') {
-                        await this.loadGmailSentMessages(acc.email, this.state.pagination.currentPage + 1);
-                    } else if (this.state.currentFolder === 'drafts') {
-                        await this.loadGmailDraftMessages(acc.email, this.state.pagination.currentPage + 1);
-                    } else if (this.state.currentFolder === 'starred') {
-                        await this.loadGmailStarredMessages(acc.email, this.state.pagination.currentPage + 1);
-                    }
-                    else if (this.state.currentFolder === 'all_mail') {
-                        await this.loadGmailAllMailMessages(acc.email, this.state.pagination.currentPage + 1);
-                    }
-                    else {
-                        await this.loadGmailMessages(acc.email, this.state.pagination.currentPage + 1);
-                    }
-                }
+            if (!acc) return;
+            const next = this.state.pagination.currentPage + 1;
+
+            if (acc.type === 'gmail') {
+                if (this.state.currentFolder === 'sent')      return this.loadGmailSentMessages(acc.email, next);
+                if (this.state.currentFolder === 'drafts')    return this.loadGmailDraftMessages(acc.email, next);
+                if (this.state.currentFolder === 'starred')   return this.loadGmailStarredMessages(acc.email, next);
+                if (this.state.currentFolder === 'all_mail')  return this.loadGmailAllMailMessages(acc.email, next);
+                return this.loadGmailMessages(acc.email, next);
+            } else if (acc.type === 'outlook') {
+                if (this.state.currentFolder === 'sent')      return this.loadOutlookSentMessages(acc.email, next);
+                if (this.state.currentFolder === 'drafts')    return this.loadOutlookDraftMessages(acc.email, next); // (nếu backend có)
+                return this.loadOutlookMessages(acc.email, next); 
             }
         }
     }
@@ -776,33 +909,80 @@ export class GmailInbox extends Component {
     async goPrevPage() {
         if (this.state.pagination.currentPage > 1) {
             const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
-            if (acc) {
-                if (acc.type === 'gmail') {
-                    if (this.state.currentFolder === 'sent') {
-                        await this.loadGmailSentMessages(acc.email, this.state.pagination.currentPage - 1);
-                    } else if (this.state.currentFolder === 'drafts') {
-                        await this.loadGmailDraftMessages(acc.email, this.state.pagination.currentPage - 1);
-                    } else if (this.state.currentFolder === 'starred') {
-                        await this.loadGmailStarredMessages(acc.email, this.state.pagination.currentPage - 1);
-                    }
-                    else if (this.state.currentFolder === 'all_mail') {
-                        await this.loadGmailAllMailMessages(acc.email, this.state.pagination.currentPage - 1);
-                    }
-                    else {
-                        await this.loadGmailMessages(acc.email, this.state.pagination.currentPage - 1);
-                    }
-                }
+            if (!acc) return;
+            const prev = this.state.pagination.currentPage - 1;
+
+            if (acc.type === 'gmail') {
+                if (this.state.currentFolder === 'sent')     return this.loadGmailSentMessages(acc.email, prev);
+                if (this.state.currentFolder === 'drafts')   return this.loadGmailDraftMessages(acc.email, prev);
+                if (this.state.currentFolder === 'starred')  return this.loadGmailStarredMessages(acc.email, prev);
+                if (this.state.currentFolder === 'all_mail') return this.loadGmailAllMailMessages(acc.email, prev);
+                return this.loadGmailMessages(acc.email, prev);
+            } else if (acc.type === 'outlook') {
+                if (this.state.currentFolder === 'sent')     return this.loadOutlookSentMessages(acc.email, prev);
+                if (this.state.currentFolder === 'drafts')   return this.loadOutlookDraftMessages(acc.email, prev); // (nếu backend có)
+                return this.loadOutlookMessages(acc.email, prev);   
             }
         }
     }
 
-    async loadOutlookMessages(email) {
-        const res = await rpc("/outlook/messages");
+
+
+    async loadOutlookMessages(email, page = 1) {
+        const res = await rpc("/outlook/messages", {
+            folder: "inbox",
+            page,
+            limit: this.state.pagination.pageSize,
+            account_id: parseInt(this.state.activeTabId),
+        });
+
+        if (res.status !== "ok") {
+            this.state.messages = [];
+            return;
+        }
+
+        // Chuẩn hoá từng mail
+        const normalized = (res.messages || []).map(normalizeOutlookMessage);
+
+        // Gom theo thread_id (conversation)
+        const threads = {};
+        for (const msg of normalized) {
+            const tid = msg.thread_id || msg.id;
+            if (!threads[tid]) threads[tid] = [];
+            threads[tid].push(msg);
+        }
+
+        // Sort trong từng thread theo thời gian tăng dần
+        Object.values(threads).forEach(list =>
+            list.sort((a, b) => new Date(a.date_received) - new Date(b.date_received))
+        );
+
+        // Lấy item mới nhất đại diện cho mỗi thread
+        let latest = Object.values(threads).map(list => list[list.length - 1]);
+
+        // Sort các thread theo thời gian giảm dần (giống inbox Gmail)
+        latest.sort((a, b) => new Date(b.date_received) - new Date(a.date_received));
+
+        this.state.threads = threads;
+        this.state.messagesByEmail[email] = latest;
+        this.state.messages = latest;
+
+        this.state.pagination.currentPage = page;
+        this.state.pagination.total = res.total ?? latest.length;
+        this.state.pagination.totalPages = Math.ceil(
+            this.state.pagination.total / this.state.pagination.pageSize
+        );
+    }
+
+    async loadOutlookSentMessages(email, page = 1) {
+        const res = await rpc("/outlook/sent_messages", {
+            page,
+            limit: this.state.pagination.pageSize,
+        });
+
         if (res.status === "ok") {
             const messages = res.messages.map((msg) => {
-                // body_html từ backend
                 const html = msg.body_html || msg.body || "";
-                // preview nhanh (tùy):
                 const tmp = document.createElement("div");
                 tmp.innerHTML = html;
                 const preview = (tmp.textContent || "").trim().slice(0, 200);
@@ -810,30 +990,27 @@ export class GmailInbox extends Component {
                 return {
                     ...msg,
                     type: "outlook",
-                    body_cleaned: html,               // nếu cần lưu bản gốc
-                    body: markup(html),               // để t-raw hiển thị HTML
-                    preview,                          // hiển thị dòng preview
+                    body_cleaned: html,
+                    body: markup(html),   // để t-raw hiển thị HTML
+                    preview,
                 };
             });
+
             this.state.messagesByEmail[email] = messages;
             this.state.messages = messages;
-        } else {
-            this.state.messages = [];
-        }
-    }
 
-
-    async loadOutlookSentMessages(email) {
-        const res = await rpc("/outlook/sent_messages");
-        if (res.status === "ok") {
-            const messages = res.messages.map((msg) => ({ ...msg, type: "outlook" }));
-            this.state.messagesByEmail[email] = messages;
-            this.state.messages = messages;
+            // cập nhật phân trang (fallback nếu backend chưa trả total)
+            this.state.pagination.currentPage = page;
+            this.state.pagination.total = res.total ?? messages.length;
+            this.state.pagination.totalPages = Math.ceil(
+                this.state.pagination.total / this.state.pagination.pageSize
+            );
         } else {
             console.warn("⚠️ Outlook sent fetch failed:", res.message);
             this.state.messages = [];
         }
     }
+
 
     async loadOutlookDraftMessages(email) {
         const res = await rpc("/outlook/draft_messages");
@@ -965,113 +1142,134 @@ export class GmailInbox extends Component {
     async onMessageClick(msg) {
         if (!msg) return;
 
+        // Xác định account hiện tại
+        const acc = this.state.accounts.find(a => a.id === this.state.activeTabId);
+
+        // Nạp email đăng nhập nếu chưa có (theo loại account)
         if (!this.state.gmail_email && !this.state.outlook_email) {
-            const account = this.state.accounts.find(a => a.id === this.state.activeTabId);
-            if (account?.type === "gmail") {
+            if (acc?.type === "gmail") {
                 await this.loadAuthenticatedEmail();
-            } else if (account?.type === "outlook") {
+            } else if (acc?.type === "outlook") {
                 await this.loadOutlookAuthenticatedEmail();
             }
         }
 
-        console.log("📥 Clicked message:", msg);
-        console.log("📨 currentUserEmail:", this.state.gmail_email || this.state.outlook_email);
-        console.log("📨 email_receiver:", msg.email_receiver);
+        const normalize = (m) => ({
+            ...m,
+            body_cleaned: m.body, // giữ nguyên để t-raw hiển thị
+            sender: m.sender || m.email_sender || "Unknown Sender",
+            email_receiver: m.email_receiver || "",
+            email_cc: m.email_cc || "",
+            email_bcc: m.email_bcc || "",
+            showDropdown: false,
+            date: m.date || m.date_received || null,
+        });
 
         const threadId = msg.thread_id;
-
         let thread = threadId ? this.state.threads?.[threadId] : null;
 
-        // ✅ Làm sạch body cho từng email trong thread
-        this.state.currentThread = Array.isArray(thread) && thread.length
-            ? thread.map(m => ({
-                ...m,
-                // body_cleaned: m.body?.split('<div class="gmail_quote">')[0]
-                //     || m.body?.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, "")
-                //     || m.body,
-                body_cleaned: m.body,
-                sender: m.sender || m.email_sender || "Unknown Sender",
-                email_receiver: m.email_receiver || '',
-                email_cc: m.email_cc || '',
-                email_bcc: m.email_bcc || '',
-                showDropdown: false,
-                date: m.date || m.date_received || null,
-            }))
-            : [{
-                ...msg,
-                body_cleaned: msg.body,
-                sender: msg.sender || msg.email_sender || "Unknown Sender",  // ✅ Dòng quan trọng
-                email_receiver: msg.email_receiver || '',
-                email_cc: msg.email_cc || '',
-                email_bcc: msg.email_bcc || '',
-                showDropdown: false,
-            }];
+        // Hiển thị tạm thời những gì đang có
+        this.state.currentThread =
+            Array.isArray(thread) && thread.length ? thread.map(normalize) : [normalize(msg)];
+        this.state.selectedMessage = msg;
 
-
-        // 🧩 Nếu chưa có đủ thread → gọi API lấy đầy đủ
-        if (!Array.isArray(thread) || thread.length < 2) {
-            console.log("🔄 Fetching full thread from server for thread_id:", threadId);
+        // === GMAIL: luôn fetch full thread để đảm bảo đủ conversation ===
+        if (acc?.type === "gmail" && threadId) {
             try {
                 const res = await rpc("/gmail/thread_detail", {
                     thread_id: threadId,
                     account_id: parseInt(this.state.activeTabId),
                 });
                 if (res.status === "ok") {
-                    console.log("✅ Full thread received:", res.messages.length, "messages");
-                    thread = res.messages.map(m => ({
+                    const full = res.messages.map(m => ({
                         ...m,
                         body_cleaned: m.body,
                         body: markup(m.body),
                         sender: m.sender || m.email_sender || "Unknown Sender",
-                        email_receiver: m.email_receiver || '',
-                        email_cc: m.email_cc || '',
-                        email_bcc: m.email_bcc || '',
+                        email_receiver: m.email_receiver || "",
+                        email_cc: m.email_cc || "",
+                        email_bcc: m.email_bcc || "",
                         showDropdown: false,
                     }));
-                    this.state.threads[threadId] = thread;
+                    // cache lại thread đầy đủ
+                    this.state.threads[threadId] = full;
+                    // cập nhật khung đọc
+                    this.state.currentThread = full;
                 } else {
-                    console.warn("⚠️ Không thể lấy thread detail:", res.message);
-                    thread = [msg];
+                    console.warn("⚠️ /gmail/thread_detail:", res.message);
                 }
             } catch (err) {
-                console.error("❌ Lỗi khi gọi /gmail/thread_detail:", err);
-                thread = [msg];
+                console.error("❌ /gmail/thread_detail error:", err);
             }
         }
+        const isOutlook = msg.type === "outlook" || acc?.type === "outlook";
+        if (isOutlook) {
+            const norm = normalizeOutlookMessage(msg);
+            this.updateMessage(norm);
 
-        // 📌 Log chi tiết thread để debug
-        console.log("🧵 Thread messages:");
-        (thread || []).forEach((m, i) => {
-            console.log(`#${i + 1} - from: ${m.from || m.sender}, to: ${m.to}, subject: ${m.subject}`);
-        });
+            // hiển thị tạm thread từ cache (nếu có)
+            let cachedThread = [];
+            const tid = norm.thread_id;
 
-        // ✅ Cập nhật thread hiện tại để hiển thị
-        this.state.selectedMessage = msg;
-        this.state.currentThread = thread;
-        
-        // ✅ Nếu là Outlook và thiếu body
-        if (
-            (msg.type === "outlook" || (msg.from && msg.from.includes("@outlook"))) &&
-            (!msg.body || msg.body === "No Content")
-        ) {
+            if (tid && this.state.threads?.[tid]?.length) {
+            cachedThread = this.state.threads[tid].map(normalizeOutlookThreadItem);
+            } else if (tid) {
+            const activeEmail = this.state.accounts.find(a => a.id === this.state.activeTabId)?.email || "";
+            const pool = (this.state.messagesByEmail[activeEmail] || []).concat(this.state.messages || []);
+            cachedThread = pool
+                .filter(x => (x.thread_id || x.id) === tid)
+                .map(normalizeOutlookThreadItem)
+                .sort((a, b) => new Date(a.date_received) - new Date(b.date_received));
+            if (cachedThread.length) this.state.threads[tid] = cachedThread;
+            } else {
+            cachedThread = [normalizeOutlookThreadItem(norm)];
+            }
+
+            this.state.currentThread = cachedThread;
+            this.state.selectedMessage = norm;
+
+            if (tid) {
             try {
-                const res = await rpc("/outlook/message_detail", { message_id: msg.id });
-                if (res.status === "ok") {
-                    msg.body = res.body || "No Content";
-                    this.updateMessage(msg);
-                } else {
-                    console.warn("⚠️ Không lấy được nội dung chi tiết Outlook:", res.message);
-                }
-            } catch (err) {
-                console.error("❌ Lỗi khi lấy chi tiết email Outlook:", err);
-            }
-        }
+                const res = await rpc("/outlook/thread_detail", {
+                thread_id: tid,
+                account_id: parseInt(this.state.activeTabId),
+                });
 
-        // ✅ Đánh dấu đã đọc nếu cần
-        if (msg.is_read !== true) {
-            msg.is_read = true;
-            this.updateMessage(msg);
-            await rpc("/gmail/mark_as_read", { message_id: msg.id });
+                if (res.status === "ok") {
+                const full = (res.messages || [])
+                    .map(normalizeOutlookThreadItem)
+                    .sort((a, b) => new Date(a.date_received) - new Date(b.date_received));
+
+                this.state.threads[tid] = full;
+                this.state.currentThread = full;
+
+                const sel = full.find(x => x.id === norm.id) || full[full.length - 1];
+                if (sel) this.state.selectedMessage = sel;
+                this.render();
+                } else {
+                console.warn("⚠️ /outlook/thread_detail:", res.message);
+                }
+            } catch (e) {
+                console.error("❌ /outlook/thread_detail error:", e);
+            }
+            } else if (!norm.body_cleaned) {
+            // fallback khi không có thread_id: lấy full body của 1 message
+            try {
+                const dres = await rpc("/outlook/message_detail", { message_id: norm.id });
+                if (dres.status === "ok") {
+                const html = (dres.content_type || "").toLowerCase() === "html"
+                    ? (dres.body || dres.body_html || "")
+                    : `<pre style="white-space:pre-wrap;margin:0">${dres.body || ""}</pre>`;
+                const updated = normalizeOutlookThreadItem({ ...norm, body: html, body_html: html });
+                this.updateMessage(updated);
+                this.state.currentThread = [updated];
+                this.state.selectedMessage = updated;
+                this.render();
+                }
+            } catch (e) {
+                console.error("❌ /outlook/message_detail error:", e);
+            }
+            }
         }
     }
 
@@ -1169,77 +1367,51 @@ export class GmailInbox extends Component {
 
 
     _addOutlookAccount = async () => {
-        const currentUserId = await getCurrentUserId();
-        const popup = window.open("", "_blank", "width=700,height=800");
-        popup.location.href = "/outlook/auth/start";
+    const popup = window.open("", "_blank", "width=700,height=800");
+    popup.location.href = "/outlook/auth/start";
+    if (!popup) {
+        console.error("❌ Không thể mở popup xác thực Outlook.");
+        return;
+    }
 
-        if (!popup) {
-            console.error("❌ Không thể mở popup xác thực Outlook.");
-            return;
+    const handleMessage = async (event) => {
+        if (event.data !== "outlook-auth-success") return;
+
+        try {
+        // Lấy danh sách account từ server (id thật trong DB)
+        const [gmailAccounts, outlookAccounts] = await Promise.all([
+            rpc("/gmail/my_accounts"),
+            rpc("/outlook/my_accounts"),
+        ]);
+
+        // Gộp & set state
+        this.state.accounts = [...gmailAccounts, ...outlookAccounts];
+
+        // Chọn account Outlook mới tạo (hoặc cái đầu tiên)
+        const newAcc =
+            outlookAccounts[outlookAccounts.length - 1] ||
+            this.state.accounts.find((a) => a.type === "outlook");
+
+        if (newAcc) {
+            this.state.activeTabId = newAcc.id;       // <-- id DB thật
+            await this.loadMessages(newAcc.email, true);
         }
 
-        const handleMessage = async (event) => {
-            if (event.data === "outlook-auth-success") {
-                console.log("📩 Đã nhận outlook-auth-success từ popup");
+        // Lưu lại cho lần sau
+        const uid = await getCurrentUserId();
+        localStorage.setItem(
+            `gmail_accounts_user_${uid}`,
+            JSON.stringify(this.state.accounts)
+        );
+        } catch (e) {
+        console.error("❌ Lỗi sau khi xác thực Outlook:", e);
+        } finally {
+        window.removeEventListener("message", handleMessage);
+        try { popup.close(); } catch (_) {}
+        }
+    };
 
-                try {
-                    const res = await fetch("/outlook/current_user_info", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-Requested-With": "XMLHttpRequest",
-                        },
-                        body: JSON.stringify({
-                            jsonrpc: "2.0",
-                            method: "call",
-                            params: {},
-                        }),
-                    });
-
-                    const json = await res.json();
-                    // console.log("📬 Outlook current_user_info:", json);
-
-                    if (json.result?.status === "success" && typeof json.result.email === "string") {
-                        const email = json.result.email;
-
-                        const exists = this.state.accounts.some((acc) => acc.email === email);
-                        if (!exists) {
-                            const newId = Date.now() + Math.floor(Math.random() * 1000);
-                            const newAccount = {
-                                id: newId,
-                                email,
-                                name: email.split("@")[0],
-                                initial: email[0].toUpperCase(),
-                                status: "active",
-                                messages: [],
-                                selectedMessage: null,
-                                currentThread: [],
-                                type: "outlook",
-                            };
-                            this.state.accounts.push(newAccount);
-                            this.state.activeTabId = newId;
-                            this.loadMessages(email);
-
-                            // ✅ Lưu localStorage theo user
-                            localStorage.setItem(
-                                `gmail_accounts_user_${currentUserId}`,
-                                JSON.stringify(this.state.accounts)
-                            );
-                        } else {
-                            const existing = this.state.accounts.find((acc) => acc.email === email);
-                            this.state.activeTabId = existing.id;
-                        }
-                    }
-
-                } catch (error) {
-                    console.error("❌ Lỗi khi lấy outlook current_user_info:", error);
-                }
-
-                window.removeEventListener("message", handleMessage);
-            }
-        };
-
-        window.addEventListener("message", handleMessage);
+    window.addEventListener("message", handleMessage);
     };
     _switchTab = (accountId) => {
         this.state.activeTabId = accountId;

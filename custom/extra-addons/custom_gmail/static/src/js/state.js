@@ -39,8 +39,8 @@ export function initialState() {
             { id: "chat", label: "Trò chuyện", icon: "fa-commenting-o" },
             { id: "scheduled", label: "Đã lên lịch", icon: "fa-calendar" },
             { id: "all_mail", label: "Tất cả thư", icon: "fa-envelope" },
-            { id: "spam", label: "Thư rác", icon: "fa-exclamation-circle" },
-            { id: "trash", label: "Thùng rác", icon: "fa-trash" },
+            // { id: "spam", label: "Thư rác", icon: "fa-exclamation-circle" },
+            // { id: "trash", label: "Thùng rác", icon: "fa-trash" },
             { id: "manage_labels", label: "Quản lý nhãn", icon: "fa-cog" },
             { id: "create_label", label: "Tạo nhãn mới", icon: "fa-plus" },
 

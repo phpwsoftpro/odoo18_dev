@@ -190,47 +190,14 @@ export default xml`
             <i class="fa fa-file"></i>
             <span>Thư nháp</span>
         </li>
-        
-        <!-- Nút hiện thêm -->
-        <li t-on-click="() => this.toggleShowAllFolders()">
-            <i t-att-class="state.showAllFolders ? 'fa fa-chevron-up' : 'fa fa-chevron-down'"></i>
-            <span t-if="state.showAllFolders">Thu gọn</span>
-            <span t-else="">Hiện thêm</span>
+        <li t-on-click="() => this.switchFolder('spam')" t-att-class="{active: state.currentFolder === 'spam'}">
+            <i class="fa fa-exclamation-circle"></i>
+            <span>Thư rác</span>
         </li>
-
-        <!-- 🔽 Hiển thị nếu đã click Hiện thêm -->
-        <t t-if="state.showAllFolders">
-            <t t-foreach="state.gmailFolders" t-as="folder" t-key="folder.id">
-                <li
-                    t-on-click="() => this.switchFolder(folder.id)"
-                    t-att-class="{active: state.currentFolder === folder.id}">
-                    <i t-att-class="'fa ' + folder.icon"></i>
-                    <span t-esc="folder.label"/>
-                </li>
-            </t>
-        </t>
-
-        <!-- 📁 Nhóm Categories -->
-            <li t-on-click="() => this.toggleCategories()" class="categories-folder">
-                <i t-att-class="state.showCategoryLabels ? 'fa fa-folder-open' : 'fa fa-folder'"></i>
-                <span>Categories</span>
-            </li>
-
-            <!-- Các nhãn con trong Categories -->
-            <t t-if="state.showCategoryLabels">
-                <li t-on-click="() => this.switchFolder('category_social')" t-att-class="{active: state.currentFolder === 'category_social'}" class="category_social">
-                    <i class="fa fa-users"></i><span>Mạng xã hội</span>
-                </li>
-                <li t-on-click="() => this.switchFolder('category_updates')" t-att-class="{active: state.currentFolder === 'category_updates'}" class="category_updates">
-                    <i class="fa fa-info-circle"></i><span>Cập nhật</span>
-                </li>
-                <li t-on-click="() => this.switchFolder('category_forums')" t-att-class="{active: state.currentFolder === 'category_forums'}" class="category_forums">
-                    <i class="fa fa-comments"></i><span>Diễn đàn</span>
-                </li>
-                <li t-on-click="() => this.switchFolder('category_promotions')" t-att-class="{active: state.currentFolder === 'category_promotions'}" class="category_promotions">
-                    <i class="fa fa-tag"></i><span>Quảng cáo</span>
-                </li>
-            </t>
+        <li t-on-click="() => this.switchFolder('trash')" t-att-class="{active: state.currentFolder === 'trash'}">
+            <i class="fa fa-trash"></i>
+            <span>Thùng rác</span>
+        </li>
     </ul>
 </div>
         <div class="gmail-header">
@@ -481,7 +448,7 @@ export default xml`
                                                     <i class="fa fa-reply"></i>
                                                 </button>
 
-                                                <button class="icon-btn reply-all" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, threadMsg)">
+                                                <button class="icon-btn reply-all" title="Trả lời tất cả" aria-label="Trả lời tất cả" t-on-click="(ev) => this.onReplyAll(ev, threadMsg)">
                                                     <i class="fa fa-reply-all"></i>
                                                 </button>
 

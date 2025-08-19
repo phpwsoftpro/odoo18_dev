@@ -6,12 +6,13 @@ from odoo.http import request, Controller
 from datetime import datetime, timedelta
 from odoo import http
 from werkzeug.utils import redirect
+from odoo import http, fields
 
 _logger = logging.getLogger(__name__)
 
 
 class GmailAuthController(Controller):
-    
+
     def _get_google_avatar_from_people(self, access_token: str) -> str:
         """
         Lấy avatar của chính user qua People API:
@@ -46,6 +47,7 @@ class GmailAuthController(Controller):
                 if "?" in url:
                     # thay hoặc thêm sz=256
                     from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+
                     parts = list(urlsplit(url))
                     qs = dict(parse_qsl(parts[3], keep_blank_values=True))
                     qs["sz"] = "256"
@@ -58,7 +60,7 @@ class GmailAuthController(Controller):
         except Exception as e:
             _logger.exception("People API error: %s", e)
             return ""
-        
+
     @http.route("/gmail/auth/start", type="http", auth="user", methods=["GET"])
     def gmail_auth_start(self, **kw):
         _logger.info("🔐 Gmail OAuth flow started from /gmail/auth/start")
@@ -130,7 +132,9 @@ class GmailAuthController(Controller):
             timeout=10,
         )
         if userinfo_res.status_code != 200:
-            _logger.error("UserInfo error %s: %s", userinfo_res.status_code, userinfo_res.text)
+            _logger.error(
+                "UserInfo error %s: %s", userinfo_res.status_code, userinfo_res.text
+            )
             return request.render(
                 "custom_gmail.gmail_auth_error",
                 {"error": "Không thể xác định thông tin user từ Google."},
@@ -194,7 +198,6 @@ class GmailAuthController(Controller):
                         "token_expiry": datetime.utcnow()
                         + timedelta(seconds=expires_in),
                         "avatar_url": avatar_url,  # ✅ Lưu avatar
-
                     }
                 )
             )
@@ -208,7 +211,6 @@ class GmailAuthController(Controller):
                     ),
                     "token_expiry": datetime.utcnow() + timedelta(seconds=expires_in),
                     "avatar_url": avatar_url,  # ✅ Lưu avatar
-
                 }
             )
 
@@ -283,3 +285,104 @@ class GmailAuthController(Controller):
 
         if not all_created:
             raise Exception("Failed to create all Discuss messages or notifications.")
+
+    @http.route("/gmail/sync_account", type="json", auth="user")
+    def sync_gmail_by_account(self, account_id):
+        account = request.env["gmail.account"].sudo().browse(int(account_id))
+        request.env["mail.message"].sudo().fetch_gmail_for_account(account)
+        request.env["mail.message"].sudo().fetch_gmail_sent_for_account(account)
+        request.env["mail.message"].sudo().fetch_gmail_drafts_for_account(account)
+        request.env["mail.message"].sudo().fetch_gmail_starred_for_account(account)
+        return {"status": "ok"}
+
+    @http.route("/gmail/save_account", type="json", auth="user", csrf=False)
+    def save_gmail_account(self, email, **kwargs):
+        user_id = request.env.user.id
+        GmailAccount = request.env["gmail.account"].sudo()
+
+        existing = GmailAccount.search(
+            [("email", "=", email), ("user_id", "=", user_id)], limit=1
+        )
+        if not existing:
+            GmailAccount.create({"user_id": user_id, "email": email})
+
+        return {"status": "saved"}
+
+    @http.route("/gmail/my_accounts", type="json", auth="user")
+    def my_gmail_accounts(self):
+        accounts = (
+            request.env["gmail.account"]
+            .sudo()
+            .search(
+                [("user_id", "=", request.env.user.id), ("access_token", "!=", False)]
+            )
+        )
+        return [
+            {
+                "id": acc.id,
+                "email": acc.email,
+                "name": (acc.email or "").split("@")[0] if acc.email else "Unknown",
+                "initial": (acc.email or "X")[0].upper(),
+                "status": "active",
+                "type": "gmail",
+            }
+            for acc in accounts
+        ]
+
+    @http.route("/gmail/session/ping", type="json", auth="user")
+    def ping(self, account_id):
+        _logger.warning(
+            f"📥 [PING] Nhận account_id: {account_id} (type={type(account_id)})"
+        )
+
+        try:
+            account_id = int(account_id)
+        except Exception as e:
+            _logger.error(f"❌ account_id không thể ép kiểu int: {account_id} ({e})")
+            return {"error": "account_id không hợp lệ"}
+
+        account = request.env["gmail.account"].sudo().browse(account_id)
+        if not account.exists():
+            _logger.warning(f"📥 [PING] Gmail account {account_id} not found")
+            return {"error": "account not found"}
+
+        user_id = request.env.user.id
+        _logger.warning(
+            f"📥 [PING] Đang tạo session với gmail_account_id={account.id}, user_id={user_id}"
+        )
+
+        session_model = request.env["gmail.account.session"].sudo()
+        session = session_model.search(
+            [("gmail_account_id", "=", account.id), ("user_id", "=", user_id)], limit=1
+        )
+
+        now = fields.Datetime.now()
+
+        if session:
+            session.write({"last_ping": now})
+            _logger.info(f"🔄 [PING] Đã cập nhật last_ping cho session ID {session.id}")
+        else:
+            _logger.info("🆕 [PING] Chưa có session → tạo mới")
+            try:
+                created = session_model.create(
+                    {
+                        "gmail_account_id": account.id,
+                        "user_id": user_id,
+                        "last_ping": now,
+                    }
+                )
+                _logger.info(f"✅ [PING] Đã tạo session ID {created.id}")
+            except Exception as e:
+                _logger.critical(
+                    f"🔥 [PING] Lỗi khi tạo session! gmail_account_id={account.id}, user_id={user_id} ➤ {e}"
+                )
+                raise
+
+        return {"has_new_mail": account.has_new_mail}
+
+    @http.route("/gmail/clear_new_mail_flag", type="json", auth="user")
+    def clear_flag(self, account_id):
+        account = request.env["gmail.account"].sudo().browse(int(account_id))
+        account.has_new_mail = False
+        _logger.info(f"✅ CLEAR FLAG: Reset has_new_mail on {account.email}")
+        return {"status": "ok"}
