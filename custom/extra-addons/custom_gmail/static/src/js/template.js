@@ -406,6 +406,7 @@ export default xml`
                                 <div class="detail-header">
                                     <h1 class="detail-subject">
                                         <t t-esc="state.selectedMessage.subject"/>
+                                        <span class="mail-label" t-on-click="() => this._switchFolder('inbox')">Inbox ×</span>
                                     </h1>
                                 </div>
                                 <div class="thread-container">
